@@ -35,5 +35,8 @@
     "helpers/",
     "JianYingTemplateProject/",
     "create_jianying_project.js"
-  ]
+  ],
+  "devDependencies": {
+    "@types/node": "^24.2.1"
+  }
 }
