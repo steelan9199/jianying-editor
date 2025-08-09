@@ -1,0 +1,58 @@
+JianYingEditor-v1.js
+JianYingEditor-v2.js
+JianYingEditor-v3.js
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Environment files
+.env*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build outputs
+dist/
+build/
+
+# Temporary files
+temp/
+*.tmp
+*.temp
+
+# OS generated files
+Thumbs.db
+
+# Configuration files that might contain sensitive information
+*.config.js
+config.json
+
+# Test and example files that shouldn't be in production
+*.test.js
+*.spec.js
+
+# Backup files
+*.bak
+*.backup
+
+# Project specific ignores
+draft_content/
+素材/
+.vscode
+部署程序
+扣子插件
+视频节目创作
+素材
+github参考剪映API仓库
+minimaxiApi
+prompt
+目录树.md
+.lingma

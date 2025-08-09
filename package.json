@@ -1,0 +1,39 @@
+{
+  "name": "jianying-editor",
+  "version": "1.0.0",
+  "description": "一个用于自动化剪映视频编辑的工具库",
+  "main": "JianYingEditor.js",
+  "type": "module",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "keywords": [
+    "jianying",
+    "video",
+    "automation",
+    "editor"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourname/jianying-editor.git"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
+    "fluent-ffmpeg": "^2.1.2"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "files": [
+    "emptyProject.json",
+    "JianYingEditor.js",
+    "helper.js",
+    "managers/",
+    "helpers/",
+    "JianYingTemplateProject/",
+    "create_jianying_project.js"
+  ]
+}
