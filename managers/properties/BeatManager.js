@@ -4,16 +4,23 @@ import { BaseManager } from "./BaseManager.js";
 /**
  * @class VideoManager
  * @description 用于管理和操作 video 对象的类
- * @extends BaseManager
+ * @extends {BaseManager<any>} // 使用 any 替代未定义的 Track 类型
  */
 export class BeatManager extends BaseManager {
-  #defaultTemplate = {}
-
-  constructor(initialItems = []) {
+  /**
+   * Creates an instance of TrackManager.
+   * @param {any[]} initialItems - An array of initial track items.
+   */
+  constructor(initialItems) {
     super(initialItems);
   }
 
+  /**
+   * 新增一个 track 对象
+   * @param {object} [itemData={}]
+   * @returns
+   */
   create(itemData = {}) {
-    return this._create(itemData, this.#defaultTemplate);
+    return this._create(itemData);
   }
 }
