@@ -17,11 +17,18 @@ import {
   CanvasManager,
   SoundChannelMappingManager,
   VocalSeparationManager,
-  MaterialAnimationManager
+  MaterialAnimationManager,
   // ...等等，未来需要哪个就在这里加哪个名字
 } from "./managers/index.js"; // 直接从总入口导入
 
-import { sortObjectByKeys, scaleDimensions, getMediaMetadata, generateId, calculateJianyingTimelineMetrics, getRemainingFramesFromMicroseconds } from "./helper.js";
+import {
+  sortObjectByKeys,
+  scaleDimensions,
+  getMediaMetadata,
+  generateId,
+  calculateJianyingTimelineMetrics,
+  getRemainingFramesFromMicroseconds,
+} from "./helper.js";
 
 /**
  * @class JianYingEditor
@@ -33,27 +40,12 @@ import { sortObjectByKeys, scaleDimensions, getMediaMetadata, generateId, calcul
  * - 管理视频、音频、图片等媒体素材
  * - 控制时间线和轨道
  * - 添加字幕和标题
- *
- * @example
- * // 创建一个新的剪映项目编辑器实例
- * const editor = new JianYingEditor();
- *
- * // 加载项目
- * await editor.load();
- *
- * // 初始化编辑器
- * await editor.init();
- *
- * // 添加视频片段
- * await editor.insertVideoClip(videoPath, trackId, timeRange);
- *
- * // 保存项目
- * await editor.save();
  */
 export class JianYingEditor {
   /**
-   * 创建一个剪映编辑器实例
+   * 创建一个剪映编辑器实例，并同步加载和初始化项目
    * @param {string} [jianYingDraftsBasePath] - 可选的剪映草稿基础路径
+   * @throws {Error} 如果加载或初始化失败
    */
   constructor(jianYingDraftsBasePath) {
     const projectMetaData = createNewProject(jianYingDraftsBasePath);
@@ -61,23 +53,74 @@ export class JianYingEditor {
     this.projectId = projectMetaData.projectId;
     this.projectRootDir = projectMetaData.projectRootDir;
     this.projectData = null;
-    console.log(styleText("green", `✅ 新建剪映工程: projectId: ${this.projectId}\n✅ 工程draft_content文件路径: ${this.draftContentPath}`));
-  }
+    console.log(
+      styleText(
+        "green",
+        `✅ 新建剪映工程: projectId: ${this.projectId}\n✅ 工程draft_content文件路径: ${this.draftContentPath}`
+      )
+    );
 
-  /**
-   * 加载项目文件
-   * @returns {Promise<void>}
-   * @throws {Error} 如果加载失败
-   */
-  async load() {
+    // --- 同步加载项目文件 ---
     try {
-      const fileContent = await fs.promises.readFile(this.draftContentPath, "utf-8");
+      const fileContent = fs.readFileSync(this.draftContentPath, "utf-8");
       this.projectData = JSON.parse(fileContent);
-      console.log("Project loaded successfully.");
+      console.log("Project loaded successfully (synchronously).");
     } catch (error) {
-      console.error("Failed to load project file:", error);
+      console.error("Failed to load project file (synchronously):", error);
       throw error;
     }
+
+    // --- 同步初始化编辑器核心组件 ---
+    if (!this.projectData) {
+      // 理论上不会发生，因为上面失败会抛出错误
+      throw new Error("Project data is not loaded after synchronous load.");
+    }
+    // 重置项目数据到 emptyProject.json
+    try {
+      const emptyProjectFilePath = "./emptyProject.json";
+      const emptyProjectContent = fs.readFileSync(
+        emptyProjectFilePath,
+        "utf-8"
+      );
+      const emptyProjectData = JSON.parse(emptyProjectContent);
+      emptyProjectData.id = this.projectData.id; // 保持原项目的ID
+      this.projectData = emptyProjectData;
+      console.log("Project data reset successfully (synchronously).");
+    } catch (error) {
+      console.error("Failed to reset project data (synchronously):", error);
+      throw error;
+    }
+
+    const projectData = this.projectData;
+    projectData.color_space = 0;
+    const materials = projectData.materials || {};
+
+    // 实例化所有需要的"部门经理"
+    // 注意：如果任何管理器的构造函数或其依赖涉及到异步操作，这里仍然是问题。
+    this.videoManager = new VideoManager(materials.videos);
+    this.audioManager = new AudioManager(materials.audios);
+    this.imageManager = new ImageManager(materials.videos); // 注意：这里使用的 materials.videos 可能有误，ImageManager 可能需要 materials.images
+    this.subtitleManager = new SubtitleManager(materials.texts);
+    this.titleManager = new TitleManager(materials.texts);
+    this.materialAnimationManager = new MaterialAnimationManager(
+      materials.material_animations
+    );
+    this.lyricsTaskInfoManager = new LyricsTaskInfoManager(
+      projectData.config.lyrics_taskinfo
+    );
+    this.beatManager = new BeatManager(materials.beats);
+    this.trackManager = new TrackManager(projectData.tracks);
+    this.speedManager = new SpeedManager(materials.speeds);
+    this.canvasManager = new CanvasManager(materials.canvases);
+    this.soundChannelMappingManager = new SoundChannelMappingManager(
+      materials.sound_channel_mappings
+    );
+    this.vocalSeparationManager = new VocalSeparationManager(
+      materials.vocal_separations
+    );
+    console.log("部门经理, 各就各位 (synchronously)");
+
+    // 注意：getMediaMetadata 如果是异步的，在 insertVideoClip 等方法中使用时仍然需要 await
   }
 
   /**
@@ -101,59 +144,15 @@ export class JianYingEditor {
     }
   }
 
-  /**
-   * 初始化编辑器核心组件
-   * @returns {Promise<void>}
-   * @throws {Error} 如果没有加载项目数据
-   */
-  async init() {
-    if (!this.projectData) {
-      throw new Error("No project data loaded. Call load() first.");
-    }
-    await this.reset();
-    const projectData = this.projectData;
-    projectData.color_space = 0;
-    const materials = projectData.materials || {};
-
-    // 实例化所有需要的"部门经理"
-    this.videoManager = new VideoManager(materials.videos);
-    this.audioManager = new AudioManager(materials.audios);
-    this.imageManager = new ImageManager(materials.videos);
-    this.subtitleManager = new SubtitleManager(materials.texts);
-    this.titleManager = new TitleManager(materials.texts);
-    this.materialAnimationManager = new MaterialAnimationManager(materials.material_animations);
-    this.lyricsTaskInfoManager = new LyricsTaskInfoManager(projectData.config.lyrics_taskinfo);
-    this.beatManager = new BeatManager(materials.beats);
-    this.trackManager = new TrackManager(projectData.tracks);
-    this.speedManager = new SpeedManager(materials.speeds);
-    this.canvasManager = new CanvasManager(materials.canvases);
-    this.soundChannelMappingManager = new SoundChannelMappingManager(materials.sound_channel_mappings);
-    this.vocalSeparationManager = new VocalSeparationManager(materials.vocal_separations);
-    console.log("部门经理, 各就各位");
-  }
   async updateCanvasWidthAndHeight(width = 1080, height = 1920) {
     const newDimensions = scaleDimensions(width, height);
 
     // 正确的顺序：先展开旧对象，再用新对象的属性去覆盖它
     this.projectData.canvas_config = {
       ...this.projectData.canvas_config, // 1. 保留所有旧属性 (如 ratio)
-      ...newDimensions // 2. 用新的 width 和 height 覆盖旧的
+      ...newDimensions, // 2. 用新的 width 和 height 覆盖旧的
     };
   }
-  async reset() {
-    if (!this.projectData) {
-      throw new Error("No project data loaded. Call load() first.");
-    }
-    const projectData = this.projectData;
-    const id = projectData.id;
-    const emptyProjectFilePath = "./emptyProject.json";
-    const emptyProjectContent = await fs.promises.readFile(emptyProjectFilePath, "utf-8");
-    const emptyProjectData = JSON.parse(emptyProjectContent);
-    emptyProjectData.id = id;
-    this.projectData = emptyProjectData;
-  }
-
-  // --- 业务方法示例 ---
 
   /**
    * (业务方法) 新增一条视频轨道，并返回其对象
@@ -164,7 +163,7 @@ export class JianYingEditor {
     return this.trackManager.create({
       type: "video",
       name: "视频轨道",
-      id: generateId()
+      id: generateId(),
     });
   }
 
@@ -177,7 +176,7 @@ export class JianYingEditor {
     return this.trackManager.create({
       type: "audio",
       name: "音频轨道",
-      id: generateId()
+      id: generateId(),
     });
   }
   /**
@@ -190,7 +189,7 @@ export class JianYingEditor {
       flag: 3,
       type: "text",
       name: "字幕轨道",
-      id: generateId()
+      id: generateId(),
     });
   }
   /**
@@ -203,28 +202,16 @@ export class JianYingEditor {
       flag: 0,
       type: "text",
       name: "标题轨道",
-      id: generateId()
+      id: generateId(),
     });
   }
 
   /**
-   * (业务方法) 查找或创建第一条可用的主视频轨道
-   * @returns {string} 轨道的 ID
+   * 获取指定轨道的最后一个片段
+   *
+   * @param {string} trackId - 轨道的ID
+   * @returns {object|null} 最后一个片段对象，如果没有片段则返回null
    */
-  findOrCreateMainVideoTrackId() {
-    const allTracks = this.trackManager.get();
-    const mainTrack = allTracks.find((t) => t.type === "video");
-
-    if (mainTrack) {
-      console.log(`已找到现有的视频轨道: ${mainTrack.id}`);
-      return mainTrack.id;
-    } else {
-      console.log("未找到视频轨道，正在创建新的...");
-      const newTrack = this.addVideoTrack();
-      return newTrack.id;
-    }
-  }
-
   getLastClipInTrack(trackId) {
     const allTracks = this.trackManager.get();
     const mainTrack = allTracks.find((t) => t.id === trackId);
@@ -233,54 +220,6 @@ export class JianYingEditor {
       return clips[clips.length - 1];
     }
     return null;
-  }
-  /**
-   * (业务方法) 查找或创建第一条可用的主视频轨道
-   * @returns {string} 轨道的 ID
-   */
-  findOrCreateMainAudioTrackId() {
-    const allTracks = this.trackManager.get();
-    const mainTrack = allTracks.find((t) => t.type === "audio");
-    if (mainTrack) {
-      console.log(`已找到现有的音频轨道: ${mainTrack.id}`);
-      return mainTrack.id;
-    } else {
-      console.log("未找到音频轨道，正在创建新的...");
-      const newTrack = this.addAudioTrack();
-      return newTrack.id;
-    }
-  }
-  /**
-   * (业务方法) 查找或创建第一条可用的字幕轨道
-   * @returns {string} 轨道的 ID
-   */
-  findOrCreateMainSubtitleTrackId() {
-    const allTracks = this.trackManager.get();
-    const mainTrack = allTracks.find((t) => t.type === "text");
-    if (mainTrack) {
-      console.log(`已找到现有的字幕轨道: ${mainTrack.id}`);
-      return mainTrack.id;
-    } else {
-      console.log("未找到字幕轨道，正在创建新的...");
-      const newTrack = this.addSubtitleTrack();
-      return newTrack.id;
-    }
-  }
-  /**
-   * (业务方法) 查找或创建第一条可用的标题轨道
-   * @returns {string} 轨道的 ID
-   */
-  findOrCreateMainTitleTrackId() {
-    const allTracks = this.trackManager.get();
-    const mainTrack = allTracks.find((t) => t.type === "text");
-    if (mainTrack) {
-      console.log(`已找到现有的标题轨道: ${mainTrack.id}`);
-      return mainTrack.id;
-    } else {
-      console.log("未找到标题轨道，正在创建新的...");
-      const newTrack = this.addTitleTrack();
-      return newTrack.id;
-    }
   }
 
   /**
@@ -291,17 +230,23 @@ export class JianYingEditor {
     switch (mediaMetadata.type) {
       case "video":
         console.log("Detected Type: Video");
-        console.log(`Duration: ${mediaMetadata.metadata.duration}s, Dimensions: ${mediaMetadata.metadata.width}x${mediaMetadata.metadata.height}`);
+        console.log(
+          `Duration: ${mediaMetadata.metadata.duration}s, Dimensions: ${mediaMetadata.metadata.width}x${mediaMetadata.metadata.height}`
+        );
         break;
 
       case "audio":
         console.log("Detected Type: Audio");
-        console.log(`Duration: ${mediaMetadata.metadata.duration}s, Sample Rate: ${mediaMetadata.metadata.sampleRate}Hz`);
+        console.log(
+          `Duration: ${mediaMetadata.metadata.duration}s, Sample Rate: ${mediaMetadata.metadata.sampleRate}Hz`
+        );
         break;
 
       case "image":
         console.log("Detected Type: Image");
-        console.log(`Dimensions: ${mediaMetadata.metadata.width}x${mediaMetadata.metadata.height}, Codec: ${mediaMetadata.metadata.codecName}`);
+        console.log(
+          `Dimensions: ${mediaMetadata.metadata.width}x${mediaMetadata.metadata.height}, Codec: ${mediaMetadata.metadata.codecName}`
+        );
         break;
     }
   }
@@ -343,11 +288,12 @@ export class JianYingEditor {
         upper_left_x: 0,
         upper_left_y: 0,
         upper_right_x: 1,
-        upper_right_y: 0
+        upper_right_y: 0,
       },
       crop_ratio: "free",
       crop_scale: 1,
-      duration: calculateJianyingTimelineMetrics(videoMetadata.duration).timelineDurationInMicroseconds,
+      duration: calculateJianyingTimelineMetrics(videoMetadata.duration)
+        .timelineDurationInMicroseconds,
       extra_type_option: 0,
       formula_id: "",
       freeze: null,
@@ -371,7 +317,7 @@ export class JianYingEditor {
         has_use_quick_eraser: false,
         interactiveTime: [],
         path: "",
-        strokes: []
+        strokes: [],
       },
       media_path: "",
       object_locked: null,
@@ -391,8 +337,8 @@ export class JianYingEditor {
         stable_level: 0,
         time_range: {
           duration: 0,
-          start: 0
-        }
+          start: 0,
+        },
       },
       team_id: "",
       type: "video",
@@ -405,9 +351,9 @@ export class JianYingEditor {
         noise_reduction: null,
         path: "",
         quality_enhance: null,
-        time_range: null
+        time_range: null,
       },
-      width: videoMetadata.width
+      width: videoMetadata.width,
     });
 
     const speed = this.speedManager.create({
@@ -415,7 +361,7 @@ export class JianYingEditor {
       id: generateId(),
       mode: 0,
       speed: 1,
-      type: "speed"
+      type: "speed",
     });
     const canvas = this.canvasManager.create({
       album_image: "",
@@ -427,13 +373,13 @@ export class JianYingEditor {
       image_name: "",
       source_platform: 0,
       team_id: "",
-      type: "canvas_color"
+      type: "canvas_color",
     });
     const sound_channel_mapping = this.soundChannelMappingManager.create({
       audio_channel_mapping: 0,
       id: generateId(),
       is_config_open: false,
-      type: ""
+      type: "",
     });
 
     const vocalSeparation = this.vocalSeparationManager.create({
@@ -441,14 +387,14 @@ export class JianYingEditor {
       id: generateId(),
       production_path: "",
       time_range: null,
-      type: "vocal_separation"
+      type: "vocal_separation",
     });
 
     const extra_material_refs = [
       speed.id,
       canvas.id,
       sound_channel_mapping.id,
-      vocalSeparation.id
+      vocalSeparation.id,
     ];
     // materials.speeds
     // materials.canvases
@@ -465,17 +411,17 @@ export class JianYingEditor {
         alpha: 1,
         flip: {
           horizontal: false,
-          vertical: false
+          vertical: false,
         },
         rotation: 0,
         scale: {
           x: 1,
-          y: 1
+          y: 1,
         },
         transform: {
           x: 0,
-          y: 0
-        }
+          y: 0,
+        },
       },
       common_keyframes: [],
       enable_adjust: true,
@@ -490,7 +436,7 @@ export class JianYingEditor {
       hdr_settings: {
         intensity: 1,
         mode: 1,
-        nits: 1000
+        nits: 1000,
       },
       id: generateId(),
       intensifies_audio: false,
@@ -505,10 +451,14 @@ export class JianYingEditor {
         horizontal_pos_layout: 0,
         size_layout: 0,
         target_follow: "",
-        vertical_pos_layout: 0
+        vertical_pos_layout: 0,
       },
       reverse: false,
-      source_timerange: { start: 0, duration: calculateJianyingTimelineMetrics(videoMetadata.duration).timelineDurationInMicroseconds },
+      source_timerange: {
+        start: 0,
+        duration: calculateJianyingTimelineMetrics(videoMetadata.duration)
+          .timelineDurationInMicroseconds,
+      },
       speed: 1,
       target_timerange: target_timerange,
       template_id: "",
@@ -517,16 +467,23 @@ export class JianYingEditor {
       track_render_index: 0,
       uniform_scale: {
         on: true,
-        value: 1
+        value: 1,
       },
       visible: true,
-      volume: 1
+      volume: 1,
     };
 
-    const trackRemainingFrames = getRemainingFramesFromMicroseconds(segment.target_timerange.start);
+    const trackRemainingFrames = getRemainingFramesFromMicroseconds(
+      segment.target_timerange.start
+    );
     console.log("trackRemainingFrames", trackRemainingFrames);
-    const currentMaterialRemainingFrames = getRemainingFramesFromMicroseconds(segment.source_timerange.duration);
-    console.log("currentMaterialRemainingFrames", currentMaterialRemainingFrames);
+    const currentMaterialRemainingFrames = getRemainingFramesFromMicroseconds(
+      segment.source_timerange.duration
+    );
+    console.log(
+      "currentMaterialRemainingFrames",
+      currentMaterialRemainingFrames
+    );
 
     if (trackRemainingFrames + currentMaterialRemainingFrames >= 3) {
       segment.target_timerange.duration += 1;
@@ -577,7 +534,8 @@ export class JianYingEditor {
       category_name: "local",
       check_flag: 1,
       copyright_limit_type: "none",
-      duration: calculateJianyingTimelineMetrics(audioMetadata.duration).timelineDurationInMicroseconds,
+      duration: calculateJianyingTimelineMetrics(audioMetadata.duration)
+        .timelineDurationInMicroseconds,
       effect_id: "",
       formula_id: "",
       id: generateId(),
@@ -608,7 +566,7 @@ export class JianYingEditor {
       tone_type: "",
       type: "extract_music",
       video_id: "",
-      wave_points: []
+      wave_points: [],
     });
     if (!newAudioMaterial) {
       console.error("错误：创建音频素材失败！");
@@ -622,7 +580,7 @@ export class JianYingEditor {
         beats_url: "",
         melody_path: "",
         melody_percents: [0],
-        melody_url: ""
+        melody_url: "",
       },
       enable_ai_beats: false,
       gear: 404,
@@ -631,7 +589,7 @@ export class JianYingEditor {
       mode: 404,
       type: "beats",
       user_beats: [],
-      user_delete_ai_beats: null
+      user_delete_ai_beats: null,
     });
     if (!beat) {
       console.error("错误：创建Beat素材失败！");
@@ -646,13 +604,13 @@ export class JianYingEditor {
       id: generateId(),
       mode: 0,
       speed: 1,
-      type: "speed"
+      type: "speed",
     });
     const sound_channel_mapping = this.soundChannelMappingManager.create({
       audio_channel_mapping: 0,
       id: generateId(),
       is_config_open: false,
-      type: ""
+      type: "",
     });
 
     const vocalSeparation = this.vocalSeparationManager.create({
@@ -660,14 +618,14 @@ export class JianYingEditor {
       id: generateId(),
       production_path: "",
       time_range: null,
-      type: "vocal_separation"
+      type: "vocal_separation",
     });
 
     const extra_material_refs = [
       speed.id,
       beat.id,
       sound_channel_mapping.id,
-      vocalSeparation.id
+      vocalSeparation.id,
     ];
     // materials.speeds
     // materials.canvases
@@ -705,10 +663,14 @@ export class JianYingEditor {
         horizontal_pos_layout: 0,
         size_layout: 0,
         target_follow: "",
-        vertical_pos_layout: 0
+        vertical_pos_layout: 0,
       },
       reverse: false,
-      source_timerange: { start: 0, duration: calculateJianyingTimelineMetrics(audioMetadata.duration).timelineDurationInMicroseconds },
+      source_timerange: {
+        start: 0,
+        duration: calculateJianyingTimelineMetrics(audioMetadata.duration)
+          .timelineDurationInMicroseconds,
+      },
       speed: 1,
       target_timerange,
       template_id: "",
@@ -717,13 +679,20 @@ export class JianYingEditor {
       track_render_index: 0,
       uniform_scale: null,
       visible: true,
-      volume: 1
+      volume: 1,
     };
 
-    const trackRemainingFrames = getRemainingFramesFromMicroseconds(segment.target_timerange.start);
+    const trackRemainingFrames = getRemainingFramesFromMicroseconds(
+      segment.target_timerange.start
+    );
     console.log("trackRemainingFrames", trackRemainingFrames);
-    const currentMaterialRemainingFrames = getRemainingFramesFromMicroseconds(segment.source_timerange.duration);
-    console.log("currentMaterialRemainingFrames", currentMaterialRemainingFrames);
+    const currentMaterialRemainingFrames = getRemainingFramesFromMicroseconds(
+      segment.source_timerange.duration
+    );
+    console.log(
+      "currentMaterialRemainingFrames",
+      currentMaterialRemainingFrames
+    );
 
     if (trackRemainingFrames + currentMaterialRemainingFrames >= 3) {
       segment.target_timerange.duration += 1;
@@ -776,7 +745,7 @@ export class JianYingEditor {
         upper_left_x: 0,
         upper_left_y: 0,
         upper_right_x: 1,
-        upper_right_y: 0
+        upper_right_y: 0,
       },
       crop_ratio: "free",
       crop_scale: 1,
@@ -804,7 +773,7 @@ export class JianYingEditor {
         has_use_quick_eraser: false,
         interactiveTime: [],
         path: "",
-        strokes: []
+        strokes: [],
       },
       media_path: "",
       object_locked: null,
@@ -824,8 +793,8 @@ export class JianYingEditor {
         stable_level: 0,
         time_range: {
           duration: 0,
-          start: 0
-        }
+          start: 0,
+        },
       },
       team_id: "",
       type: "photo",
@@ -838,9 +807,9 @@ export class JianYingEditor {
         noise_reduction: null,
         path: "",
         quality_enhance: null,
-        time_range: null
+        time_range: null,
       },
-      width: metadata.width
+      width: metadata.width,
     });
     if (!newImageMaterial) {
       console.error("错误：创建图片素材失败！");
@@ -857,7 +826,7 @@ export class JianYingEditor {
       image_name: "",
       source_platform: 0,
       team_id: "",
-      type: "canvas_color"
+      type: "canvas_color",
     });
 
     // 效果id列表
@@ -868,13 +837,13 @@ export class JianYingEditor {
       id: generateId(),
       mode: 0,
       speed: 1,
-      type: "speed"
+      type: "speed",
     });
     const sound_channel_mapping = this.soundChannelMappingManager.create({
       audio_channel_mapping: 0,
       id: generateId(),
       is_config_open: false,
-      type: ""
+      type: "",
     });
 
     const vocalSeparation = this.vocalSeparationManager.create({
@@ -882,14 +851,14 @@ export class JianYingEditor {
       id: generateId(),
       production_path: "",
       time_range: null,
-      type: "vocal_separation"
+      type: "vocal_separation",
     });
 
     const extra_material_refs = [
       canvas.id,
       sound_channel_mapping.id,
       speed.id,
-      vocalSeparation.id
+      vocalSeparation.id,
     ];
     // materials.speeds
     // materials.canvases
@@ -920,17 +889,17 @@ export class JianYingEditor {
         alpha: 1,
         flip: {
           horizontal: false,
-          vertical: false
+          vertical: false,
         },
         rotation: 0,
         scale: {
           x: 1,
-          y: 1
+          y: 1,
         },
         transform: {
           x: 0,
-          y: 0
-        }
+          y: 0,
+        },
       },
       common_keyframes: [],
       enable_adjust: true,
@@ -945,7 +914,7 @@ export class JianYingEditor {
       hdr_settings: {
         intensity: 1,
         mode: 1,
-        nits: 1000
+        nits: 1000,
       },
       id: generateId(),
       intensifies_audio: false,
@@ -960,7 +929,7 @@ export class JianYingEditor {
         horizontal_pos_layout: 0,
         size_layout: 0,
         target_follow: "",
-        vertical_pos_layout: 0
+        vertical_pos_layout: 0,
       },
       reverse: false,
       source_timerange,
@@ -972,10 +941,10 @@ export class JianYingEditor {
       track_render_index: 0,
       uniform_scale: {
         on: true,
-        value: 1
+        value: 1,
       },
       visible: true,
-      volume: 1
+      volume: 1,
     });
 
     if (newSegment) {
@@ -1053,7 +1022,8 @@ export class JianYingEditor {
     //     text: '并且它似乎在对我们发出回应'
     //   }
     // ]
-    const font_path = "C:/Users/Administrator/AppData/Local/Microsoft/Windows/Fonts/LXGWWenKaiMonoGB-Medium.ttf";
+    const font_path =
+      "C:/Users/Administrator/AppData/Local/Microsoft/Windows/Fonts/LXGWWenKaiMonoGB-Medium.ttf";
 
     const originalContent = {
       text: subtitle.text,
@@ -1062,40 +1032,29 @@ export class JianYingEditor {
           fill: {
             content: {
               solid: {
-                color: [
-                  1,
-                  0.87058824300766,
-                  0
-                ]
-              }
-            }
+                color: [1, 0.87058824300766, 0],
+              },
+            },
           },
           font: {
             path: font_path,
-            id: ""
+            id: "",
           },
           strokes: [
             {
               content: {
                 solid: {
-                  color: [
-                    0,
-                    0,
-                    0
-                  ]
-                }
+                  color: [0, 0, 0],
+                },
               },
-              width: 0.07999999821186066
-            }
+              width: 0.07999999821186066,
+            },
           ],
           size: 5,
           useLetterColor: true,
-          range: [
-            0,
-            subtitle.text.length
-          ]
-        }
-      ]
+          range: [0, subtitle.text.length],
+        },
+      ],
     };
 
     const newSubtitleMaterial = this.subtitleManager.create({
@@ -1123,11 +1082,11 @@ export class JianYingEditor {
         request_id: "",
         resource_id: "",
         resource_name: "",
-        source_platform: 0
+        source_platform: 0,
       },
       check_flag: 7,
       combo_info: {
-        text_templates: []
+        text_templates: [],
       },
       content: JSON.stringify(originalContent),
       fixed_height: -1,
@@ -1178,7 +1137,7 @@ export class JianYingEditor {
       shadow_distance: 5,
       shadow_point: {
         x: 0.6363961030678928,
-        y: -0.6363961030678928
+        y: -0.6363961030678928,
       },
       shadow_smoothing: 0.45,
       shape_clip_x: false,
@@ -1204,8 +1163,8 @@ export class JianYingEditor {
       words: {
         end_time: [],
         start_time: [],
-        text: []
-      }
+        text: [],
+      },
     });
     if (!newSubtitleMaterial) {
       console.error("错误：创建字幕素材失败！");
@@ -1217,7 +1176,7 @@ export class JianYingEditor {
       animations: [],
       id: generateId(),
       multi_language_current: "none",
-      type: "sticker_animation"
+      type: "sticker_animation",
     });
 
     const extra_material_refs = [materialAnimation.id];
@@ -1236,17 +1195,17 @@ export class JianYingEditor {
         alpha: 1,
         flip: {
           horizontal: false,
-          vertical: false
+          vertical: false,
         },
         rotation: 0,
         scale: {
           x: 1,
-          y: 1
+          y: 1,
         },
         transform: {
           x: 0,
-          y: -0.73
-        }
+          y: -0.73,
+        },
       },
       common_keyframes: [],
       enable_adjust: false,
@@ -1272,14 +1231,14 @@ export class JianYingEditor {
         horizontal_pos_layout: 0,
         size_layout: 0,
         target_follow: "",
-        vertical_pos_layout: 0
+        vertical_pos_layout: 0,
       },
       reverse: false,
       source_timerange: null,
       speed: 1,
       target_timerange: {
         duration: subtitle.endTime - subtitle.startTime,
-        start: subtitle.startTime + startTime
+        start: subtitle.startTime + startTime,
       },
       template_id: "",
       template_scene: "default",
@@ -1287,10 +1246,10 @@ export class JianYingEditor {
       track_render_index: 1,
       uniform_scale: {
         on: true,
-        value: 1
+        value: 1,
       },
       visible: true,
-      volume: 1
+      volume: 1,
     });
 
     if (newSegment) {

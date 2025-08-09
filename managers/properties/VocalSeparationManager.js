@@ -1,5 +1,5 @@
 // --- 文件: managers/properties/VocalSeparationManager.js ---
-import { BaseManager } from './BaseManager.js';
+import { BaseManager } from "./BaseManager.js";
 
 /**
  * @class VocalSeparationManager
@@ -13,14 +13,5 @@ export class VocalSeparationManager extends BaseManager {
    */
   constructor(initialItems) {
     super(initialItems);
-  }
-
-  /**
-   * 新增一个 track 对象
-   * @param {object} [itemData={}]
-   * @returns
-   */
-  create(itemData = {}) {
-    return this._create(itemData);
   }
 }

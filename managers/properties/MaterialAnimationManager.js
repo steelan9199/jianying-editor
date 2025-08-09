@@ -13,13 +13,4 @@ export class MaterialAnimationManager extends BaseManager {
   constructor(initialItems) {
     super(initialItems);
   }
-
-  /**
-   * 新增一个 track 对象
-   * @param {object} [itemData={}]
-   * @returns
-   */
-  create(itemData = {}) {
-    return this._create(itemData);
-  }
 }

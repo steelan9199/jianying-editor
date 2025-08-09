@@ -15,8 +15,4 @@ export class AudioManager extends BaseManager {
   constructor(initialItems) {
     super(initialItems);
   }
-
-  create(itemData = {}) {
-    return this._create(itemData);
-  }
 }

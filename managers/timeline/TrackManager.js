@@ -16,15 +16,6 @@ export class TrackManager extends BaseManager {
     super(initialItems);
   }
 
-  /**
-   * 新增一个 track 对象
-   * @param {object} [itemData={}]
-   * @returns
-   */
-  create(itemData = {}) {
-    return this._create(itemData);
-  }
-
   // --- Segment 的专用管理方法 ---
 
   /**
@@ -35,7 +26,7 @@ export class TrackManager extends BaseManager {
    * @returns {Object|null} 创建成功的新 segment 对象
    */
   addSegment(trackId, segmentData) {
-    const track = this._getItemReference(trackId);
+    const track = this.getItemReference(trackId);
     if (!track) {
       console.warn(`未找到ID为 ${trackId} 的 track，无法添加 segment`);
       return null;
@@ -53,7 +44,7 @@ export class TrackManager extends BaseManager {
    * @returns {Object|null} 更新后的 segment 对象
    */
   updateSegment(trackId, segmentId, updates) {
-    const track = this._getItemReference(trackId);
+    const track = this.getItemReference(trackId);
     if (!track) {
       console.warn(`未找到ID为 ${trackId} 的 track`);
       return null;
@@ -98,7 +89,7 @@ export class TrackManager extends BaseManager {
    * @returns {number} 指定轨道上所有素材片段的总时长（单位与 target_timerange.duration 一致，通常为微秒）
    */
   getTrackDuration(trackId) {
-    const track = this._getItemReference(trackId);
+    const track = this.getItemReference(trackId);
     if (!track) {
       console.warn(`未找到ID为 ${trackId} 的 track`);
       return 0;
@@ -142,7 +133,7 @@ export class TrackManager extends BaseManager {
    * @param {string} trackId - 轨道 ID。
    */
   getLastRemainingFrames(trackId) {
-    const track = this._getItemReference(trackId);
+    const track = this.getItemReference(trackId);
     if (!track) {
       console.warn(`未找到ID为 ${trackId} 的 track`);
       return 0;
@@ -180,7 +171,7 @@ export class TrackManager extends BaseManager {
    * @returns {boolean} 如果成功删除则返回 true
    */
   removeSegment(trackId, segmentId) {
-    const track = this._getItemReference(trackId);
+    const track = this.getItemReference(trackId);
     if (!track) {
       console.warn(`未找到ID为 ${trackId} 的 track`);
       return false;

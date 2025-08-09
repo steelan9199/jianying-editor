@@ -32,12 +32,11 @@ export class BaseManager {
   }
 
   /**
-   * (受保护方法) 通过ID查找 item 在数组中的索引。
+   * 通过ID查找 item 在数组中的索引。
    * @param {string} id - 要查找的 item 的 ID
    * @returns {number} 索引，未找到则返回 -1
-   * @protected
    */
-  _findIndexById(id) {
+  findIndexById(id) {
     if (!id || typeof id !== "string") {
       throw new Error("请提供有效的ID");
     }
@@ -45,23 +44,21 @@ export class BaseManager {
   }
 
   /**
-   * (受保护方法) 通过ID查找并返回真实的 item 引用（非副本）。
+   * 通过ID查找并返回真实的 item 引用（非副本）。
    * 仅供需要直接修改子对象的子类（如 TrackManager）使用。
    * @param {string} id - 要查找的 item 的 ID
    * @returns {T|null} 真实的 item 对象引用，或 null
-   * @protected
    */
-  _getItemReference(id) {
-    const index = this._findIndexById(id);
+  getItemReference(id) {
+    const index = this.findIndexById(id);
     return index > -1 ? this.#items[index] : null;
   }
 
   /**
-   * (受保护方法) 创建一个新的 item 并添加到数组中。
+   * 创建一个新的 item 并添加到数组中。
    * @param {T} itemData - 要创建的 item 数据
-   * @protected
    */
-  _create(itemData) {
+  create(itemData) {
     if (!itemData || typeof itemData !== "object") {
       throw new Error("无效的 item 数据");
     }
@@ -71,7 +68,7 @@ export class BaseManager {
     }
 
     // 检查是否已存在相同 ID 的项
-    if (this._findIndexById(itemData.id) !== -1) {
+    if (this.findIndexById(itemData.id) !== -1) {
       throw new Error(`ID 为 ${itemData.id} 的 item 已存在`);
     }
     const newItem = itemData;
@@ -86,7 +83,7 @@ export class BaseManager {
    */
   get(id) {
     if (id) {
-      const item = this._getItemReference(id);
+      const item = this.getItemReference(id);
       return item;
     } else {
       return this.#items;
@@ -102,7 +99,7 @@ export class BaseManager {
     if (!updates || typeof updates !== "object") {
       throw new Error("无效的更新数据");
     }
-    const index = this._findIndexById(id);
+    const index = this.findIndexById(id);
 
     if (index === -1) {
       console.warn(`未找到ID为 ${id} 的 item，无法更新`);
@@ -126,7 +123,7 @@ export class BaseManager {
    * @returns {boolean} 如果成功删除则返回 true
    */
   remove(id) {
-    const index = this._findIndexById(id);
+    const index = this.findIndexById(id);
     if (index === -1) {
       console.warn(`未找到ID为 ${id} 的 item，无法删除`);
       return false;
@@ -149,6 +146,6 @@ export class BaseManager {
    * @returns {boolean} 如果存在返回 true，否则返回 false
    */
   has(id) {
-    return this._findIndexById(id) !== -1;
+    return this.findIndexById(id) !== -1;
   }
 }
