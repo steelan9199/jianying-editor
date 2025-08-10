@@ -30,7 +30,7 @@ export class TrackManager extends BaseManager {
 
   /**
    * 创建一个新的轨道对象。
-   * @param {{name: string, type: "video" | "audio" | "text"}} trackMetadata - 新轨道的元数据。包含轨道的 name 和 type。
+   * @param {{name: string, type: "video" | "audio" | "text", id?:string}} trackMetadata - 新轨道的元数据。包含轨道的 name 和 type。
    * @returns {object} 返回新创建的轨道对象。
    */
   create(trackMetadata) {
@@ -140,11 +140,13 @@ export class TrackManager extends BaseManager {
 
     return trackDuration;
   }
+
   /**
    * 根据轨道名称获取轨道对象。
    * @param {string} trackName - 要查找的轨道名称。
-   * @returns {object} 匹配的轨道对象。
+   * @returns {{id: string, [key: string]: any}} 匹配的轨道对象，该对象有一个id属性。
    */
+
   getTrackByTrackName(trackName) {
     const tracks = this.get();
 

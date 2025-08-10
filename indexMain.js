@@ -20,6 +20,13 @@ jianYingEditor.trackManager.create({ name: "字幕轨道", type: "text" });
 jianYingEditor.trackManager.create({ name: "标题轨道", type: "text" });
 
 /* ------------------------------ 视频轨道放置一个视频片段 -------------------------------------------- */
-// jianYingEditor.addVideoClip({ filePath, track, start_time, duration, target_timerange });
+jianYingEditor.insertVideoClip({
+  videoPath: "filePath",
+  trackName: "视频轨道",
+  target_timerange: {
+    start: 0,
+    duration: 1000000,
+  },
+});
 
 // 素材在时间线上的起始时间和持续时长

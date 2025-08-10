@@ -302,21 +302,26 @@ export class JianYingEditor {
   }
 
   /**
-   * (高级业务方法) 向时间轴插入一个视频片段
-   * @param {string} videoPath - 视频文件的本地路径
-   * @param {string} trackId - 要插入视频片段的目标轨道ID。
-   * @param {{start: number, duration: number}} target_timerange - 片段在时间轴上的目标时间范围，包含起始时间和持续时间（单位：微秒）。
+   * (高级业务方法) 向时间轴插入一个视频片段.
+   *
+   * @param {object} params - 参数对象.
+   * @param {string} params.videoPath - 视频文件的本地路径.
+   * @param {string} params.trackName - 要插入视频片段的目标轨道名字.
+   * @param {{start: number, duration: number}} params.target_timerange - 片段在时间轴上的目标时间范围，包含起始时间和持续时间（单位：微秒）.
+   * @returns {Promise<object|null>} 新创建的视频片段对象，或在失败时返回 null.
    */
-  async insertVideoClip(videoPath, trackId, target_timerange) {
+  async insertVideoClip({ videoPath, trackName, target_timerange }) {
     console.log(styleText("green", `--- 开始执行高级业务：插入视频片段 ---\n`));
-    if (!trackId) {
-      throw new Error("未指定轨道ID");
+    if (!trackName) {
+      throw new Error("未指定轨道名字");
     }
     if (!target_timerange) {
       console.log("target_timerange", target_timerange);
       throw new Error("未指定素材片段在时间轴上的位置和时长");
     }
     console.log(`获取视频元信息, 文件路径: ${videoPath}`);
+    const track = this.trackManager.getTrackByTrackName(trackName) 
+    const trackId = track.id
     const mediaMetadata = await getMediaMetadata(videoPath);
     // 类型守卫：在处理前，先检查并确保媒体类型是 'video'
     if (mediaMetadata.type !== "video") {
