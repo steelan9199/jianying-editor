@@ -59,6 +59,7 @@ export class BaseManager {
    * @param {T} itemData - 要创建的 item 数据
    */
   create(itemData) {
+    console.debug("🚀 ~ BaseManager ~ create ~ itemData:", itemData)
     if (!itemData || typeof itemData !== "object") {
       throw new Error("无效的 item 数据");
     }

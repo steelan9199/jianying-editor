@@ -5,6 +5,12 @@
  * @typedef {import('../../types').Segment} Segment
  */
 
+/**
+ * 工具函数
+ * @type {object}
+ */
+import { generateId } from "../../helper.js";
+
 import { BaseManager } from "../properties/BaseManager.js";
 import { getRemainingFramesFromMicroseconds } from "../../helper.js";
 
@@ -28,9 +34,11 @@ export class TrackManager extends BaseManager {
    * @returns {object} 返回新创建的轨道对象。
    */
   create(trackMetadata) {
+    console.debug("🚀 ~ TrackManager ~ create ~ trackMetadata:", trackMetadata);
     const defaultTemplate = {
       attribute: 0,
       flag: 0,
+      id: generateId(),
       is_default_name: true,
       name: "",
       segments: [],
