@@ -1,11 +1,7 @@
 import { JianYingEditor } from "./JianYingEditor.js"; // 替换为你的包名
 const jianYingDraftsBasePath = "F:/动漫/剪映/草稿/JianyingPro Drafts";
 const jianYingEditor = new JianYingEditor(jianYingDraftsBasePath);
-console.log("jianYingEditor", jianYingEditor);
-
-/* ------------------------------ 初始化 -------------------------------------------- */
-await jianYingEditor.load();
-await jianYingEditor.init();
+// console.log("jianYingEditor", jianYingEditor);
 
 /* ------------------------------ 创建轨道 -------------------------------------------- */
 // 创建视频轨道

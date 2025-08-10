@@ -73,7 +73,6 @@ export class JianYingEditor {
     try {
       const fileContent = fs.readFileSync(this.draftContentPath, "utf-8");
       this.projectData = JSON.parse(fileContent);
-      console.log("Project loaded successfully (synchronously).");
     } catch (error) {
       console.error("Failed to load project file (synchronously):", error);
       throw error;
@@ -94,7 +93,6 @@ export class JianYingEditor {
       const emptyProjectData = JSON.parse(emptyProjectContent);
       emptyProjectData.id = this.projectData.id; // 保持原项目的ID
       this.projectData = emptyProjectData;
-      console.log("Project data reset successfully (synchronously).");
     } catch (error) {
       console.error("Failed to reset project data (synchronously):", error);
       throw error;

@@ -5,8 +5,6 @@
  * @typedef {import('../../types').Segment} Segment
  */
 
-
-
 import { BaseManager } from "../properties/BaseManager.js";
 import { getRemainingFramesFromMicroseconds } from "../../helper.js";
 
@@ -24,6 +22,25 @@ export class TrackManager extends BaseManager {
     super(initialItems);
   }
 
+  /**
+   * 创建一个新的轨道对象。
+   * @param {{name: string, type: "video" | "audio" | "text"}} trackMetadata - 新轨道的元数据。包含轨道的 name 和 type。
+   * @returns {object} 返回新创建的轨道对象。
+   */
+  create(trackMetadata) {
+    const defaultTemplate = {
+      attribute: 0,
+      flag: 0,
+      is_default_name: true,
+      name: "",
+      segments: [],
+    };
+    trackMetadata = {
+      ...defaultTemplate,
+      ...trackMetadata,
+    };
+    return super.create(trackMetadata); // 调用父类的 create 方法
+  }
   // --- Segment 的专用管理方法 ---
 
   /**
