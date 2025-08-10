@@ -1,4 +1,13 @@
 // --- 文件: JianYingEditor.js ---
+/**
+ * @typedef {import('./types').VideoMetadata} VideoMetadata
+ * @typedef {import('./types').AudioMetadata} AudioMetadata
+ * @typedef {import('./types').ImageMetadata} ImageMetadata
+ * @typedef {import('./types').UnsupportedMetadata} UnsupportedMetadata
+ * @typedef {import('./types').MediaMetadataResult} MediaMetadataResult
+ * @typedef {import('./types').Track} Track
+ */
+
 import fs from "fs";
 import path from "path";
 import { styleText } from "node:util";
@@ -231,9 +240,9 @@ export class JianYingEditor {
    * 打印格式化后的媒体元数据信息到控制台.
    *
    * @param {(
-   *   {type: 'video', metadata: {hasAudio: boolean, duration: number, width: number, height: number, codecName: string, formatName: string, bitRate: number, frameRate: number, sampleRate: number, channels: number, channelLayout: string}} |
-   *   {type: 'audio', metadata: {duration: number, sampleRate: number, channels: number, bitRate: number, codecName: string, formatName: string}} |
-   *   {type: 'image', metadata: {width: number, height: number, codecName: string, formatName: string}} |
+   *   {type: 'video', metadata: {hasAudio: boolean, duration: number, width: number, height: number, codecName: string, bitRate: number, frameRate: number, sampleRate: number, channels: number, channelLayout: string}} |
+   *   {type: 'audio', metadata: {duration: number, sampleRate: number, channels: number, bitRate: number, codecName: string}} |
+   *   {type: 'image', metadata: {width: number, height: number, codecName: string}} |
    *   {type: 'unsupported', metadata: {error: string}}
    * )} mediaMetadata - 包含媒体类型和具体元数据的对象.
    * @returns {void}
@@ -317,9 +326,15 @@ export class JianYingEditor {
         `提供的文件不是视频文件。期望 'video'，但得到 '${mediaMetadata.type}'。路径: ${videoPath}`
       );
     }
-    this.logMediaMetadata(mediaMetadata);
-
-    const videoMetadata = mediaMetadata.metadata;
+    /**
+     * Logs media metadata for a video.
+     * The cast is used here to specify the expected type for logging.
+     * @param {MediaMetadataResult} mediaMetadata - The media metadata object.
+     */
+    this.logMediaMetadata(
+      /** @type {{type: 'video', metadata: VideoMetadata}} */ (mediaMetadata)
+    );
+    const videoMetadata = /** @type {VideoMetadata} */ (mediaMetadata.metadata);
     // 视频时长duration秒 6.455011
     // 视频时长durationInMicroseconds微秒 6455011
     // 2. 在素材库中创建视频素材记录
@@ -552,6 +567,8 @@ export class JianYingEditor {
   /**
    * (高级业务方法) 向时间轴插入一个音频片段
    * @param {string} audioPath - 音频文件的本地路径
+   * @param {string} trackId - 要插入音频片段的目标轨道ID。
+   * @param {{start: number, duration: number}} target_timerange - 片段在时间轴上的目标时间范围，包含起始时间和持续时间（单位：微秒）。
    */
   async insertAudioClip(audioPath, trackId, target_timerange) {
     console.log(styleText("green", `--- 开始执行高级业务：插入音频片段 ---\n`));
@@ -570,9 +587,16 @@ export class JianYingEditor {
         `提供的文件不是音频文件。期望 'audio'，但得到 '${mediaMetadata.type}'。路径: ${audioPath}`
       );
     }
-    this.logMediaMetadata(mediaMetadata);
 
-    const audioMetadata = mediaMetadata.metadata;
+    /**
+     * Logs media metadata for a video.
+     * The cast is used here to specify the expected type for logging.
+     * @param {import("./types").MediaMetadataResult} mediaMetadata - The media metadata object.
+     */
+    this.logMediaMetadata(
+      /** @type {{type: 'audio', metadata: AudioMetadata}} */ (mediaMetadata)
+    );
+    const audioMetadata = /** @type {AudioMetadata} */ (mediaMetadata.metadata);
     // 返回一个包含关键音频信息的对象
     // return {
     //   duration: Number(duration), // 确保是数字
@@ -765,7 +789,14 @@ export class JianYingEditor {
       return null;
     }
   }
-
+  /**
+   * (高级业务方法) 向时间轴插入一个图片片段
+   * @param {object} params - 参数对象
+   * @param {string} params.mediaPath - 图片文件的本地路径
+   * @param {string} params.trackId - 要插入图片片段的目标轨道ID。
+   * @param {Track} params.referenceTrack - 用于确定图片片段位置和时长的参考轨道对象（通常是人声轨道）。
+   * @param {number} params.index - 参考轨道中用于确定图片片段位置的片段索引。
+   */
   async insertImageClip({ mediaPath, trackId, referenceTrack, index }) {
     console.log(styleText("green", `--- 开始执行高级业务：插入图片片段 ---\n`));
     if (!trackId) {
@@ -774,8 +805,16 @@ export class JianYingEditor {
 
     console.log(`获取图片元信息, 文件路径: ${mediaPath}`);
     const mediaMetadata = await getMediaMetadata(mediaPath);
-    this.logMediaMetadata(mediaMetadata);
-    const metadata = mediaMetadata.metadata;
+
+    /**
+     * Logs media metadata for a video.
+     * The cast is used here to specify the expected type for logging.
+     * @param {import("./types").MediaMetadataResult} mediaMetadata - The media metadata object.
+     */
+    this.logMediaMetadata(
+      /** @type {{type: 'image', metadata: ImageMetadata}} */ (mediaMetadata)
+    );
+    const metadata = /** @type {ImageMetadata} */ (mediaMetadata.metadata);
 
     // // 返回一个包含关键图片信息的对象
     // 从图像流中提取宽度和高度
@@ -929,7 +968,6 @@ export class JianYingEditor {
     // source_timerange: { start: 0, duration: 10000000 },
     // speed: 1,
     // target_timerange: { start: 0, duration: 10000000 },
-
     const referenceSegments = referenceTrack.segments;
     const referenceSegment = referenceSegments[index];
     console.log("referenceSegment", referenceSegment);
@@ -940,6 +978,7 @@ export class JianYingEditor {
     const source_timerange = { start: 0, duration: target_timerange.duration };
 
     const newSegment = this.trackManager.addSegment(trackId, {
+      // @ts-ignore
       caption_info: null,
       cartoon: false,
       clip: {
@@ -1012,10 +1051,17 @@ export class JianYingEditor {
       return null;
     }
   }
+
   /**
-   * (高级业务方法) 向时间轴插入一个字幕片段
-   * @param {string} subtitle - 字幕内容 -
+   * (高级业务方法) 向时间轴插入多个字幕片段。
+   *
+   * @param {Array<{index: number, startTime: number, endTime: number, text: string}>} subtitles - 字幕数组. 包含字幕文本和时间信息。
+   * @param {string} trackId - 要插入字幕的目标轨道ID。
+   * @param {Track} vocalTrack - 用于确定字幕位置和时长的参考轨道对象（通常是人声轨道）。
+   * @param {number} index - 参考轨道中用于确定字幕片段位置的片段索引。
+   * @param {"text" | "subtitle"} textType - 字幕的类型
    */
+
   async insertSubtitleClips(subtitles, trackId, vocalTrack, index, textType) {
     console.log(styleText("green", `--- 开始执行高级业务：插入字幕片段 ---\n`));
     if (!trackId) {
@@ -1054,8 +1100,12 @@ export class JianYingEditor {
     }
   }
   /**
-   * (高级业务方法) 向时间轴插入一个字幕片段
-   * @param {string} subtitle - 字幕内容 -
+   * (高级业务方法) 向时间轴插入多个字幕片段。
+   *
+   * @param {{index: number, startTime: number, endTime: number, text: string}} subtitle - 字幕. 包含字幕文本和时间信息。
+   * @param {string} trackId - 要插入字幕的目标轨道ID。
+   * @param {number} startTime
+   * @param {"text" | "subtitle"} textType - 字幕的类型
    */
   async insertSubtitleClip(subtitle, trackId, startTime, textType) {
     console.log(styleText("green", `--- 开始执行高级业务：插入字幕片段 ---\n`));
@@ -1246,6 +1296,7 @@ export class JianYingEditor {
     // 3. 在轨道上添加引用该素材的片段
     console.log(`正在向轨道 ${trackId} 添加片段...`);
     const newSegment = this.trackManager.addSegment(trackId, {
+      // @ts-ignore
       caption_info: null,
       cartoon: false,
       clip: {

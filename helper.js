@@ -67,7 +67,7 @@ export function srtTimeToMicroseconds(srtTime) {
 /**
  * 解析SRT文件并转换为微秒时间格式
  * @param {string} srtFilePath - SRT文件路径
- * @returns {Array<object>} 字幕对象数组，包含索引、开始时间、结束时间和文本
+ * @returns {Array<{index: number, startTime: number, endTime: number, text: string}>} 字幕对象数组
  */
 export function parseSrtFileToMicroseconds(srtFilePath) {
   const data = fs.readFileSync(srtFilePath, "utf-8");
@@ -100,8 +100,9 @@ export function parseSrtFileToMicroseconds(srtFilePath) {
         text,
       };
     })
-    .filter((item) => item !== null && !isNaN(item.index)); // 过滤掉无效的块
+    .filter((item) => item !== null); // 过滤掉所有为 null 的无效块，这样 TypeScript 就能正确推断类型
 
+  // The type assertion is needed because TypeScript can't infer the type after the filter
   return subtitles;
 }
 
@@ -109,12 +110,7 @@ export function parseSrtFileToMicroseconds(srtFilePath) {
  * 使用 ffprobe 获取媒体文件的元数据。
  *
  * @param {string} filePath - 媒体文件的路径。
- * @returns {Promise<(
- *   {type: 'video', metadata: {hasAudio: boolean, duration: number, width: number, height: number, codecName: string, formatName: string, bitRate: number, frameRate: number, sampleRate: number, channels: number, channelLayout: string}} |
- *   {type: 'audio', metadata: {duration: number, sampleRate: number, channels: number, bitRate: number, codecName: string, formatName: string}} |
- *   {type: 'image', metadata: {width: number, height: number, codecName: string, formatName: string}} |
- *   {type: 'unsupported', metadata: {error: string}}
- * )>} 返回一个包含媒体类型和元数据的对象。
+ * @returns {Promise<import('./types').MediaMetadataResult>} 返回一个包含媒体类型和元数据的对象。当类型为 'unsupported' 时，metadata.error 属性包含错误信息字符串。
  */
 export async function getMediaMetadata(filePath) {
   try {
@@ -133,12 +129,23 @@ export async function getMediaMetadata(filePath) {
       return { type: "image", metadata };
     } else {
       // 3. 如果扩展名不认识，则标记为不支持
-      throw new Error(`Unsupported file type: ${ext}`);
+      const errorMessage = `Unsupported file type: ${ext}`;
+      console.error(errorMessage); // 打印错误信息
+      // 返回 unsupported 类型，metadata 包含错误信息
+      return { type: "unsupported", metadata: { error: errorMessage } };
     }
-  } catch (err) {
+  } catch (
+    /**
+     * @type {unknown}
+     */
+    err
+  ) {
     console.error(`Error processing file ${filePath}:`, err);
-    // 重新抛出错误，让调用者可以捕获
-    throw err;
+    // 当内部函数出错时，也返回 unsupported 类型
+    return {
+      type: "unsupported",
+      metadata: { error: err instanceof Error ? err.message : "Unknown error" },
+    };
   }
 }
 
@@ -168,6 +175,13 @@ export function msToMicroseconds(ms) {
  */
 export function sortObjectByKeys(obj) {
   // 递归排序所有层级
+  /**
+   * replacer 函数用于 JSON.stringify 的第二个参数，用于过滤或转换 JSON 数据。
+   *
+   * @param {string} key - 当前正在处理的属性的名称。
+   * @param {any} value - 当前正在处理的属性的值。
+   * @returns {any} 返回要包含在 JSON 字符串中的值。如果返回 undefined，则属性将被忽略。
+   */
   function replacer(key, value) {
     if (Array.isArray(value)) {
       return value.map(sortObjectByKeys);
@@ -175,10 +189,18 @@ export function sortObjectByKeys(obj) {
     if (value && typeof value === "object" && !Array.isArray(value)) {
       return Object.keys(value)
         .sort()
-        .reduce((acc, k) => {
-          acc[k] = sortObjectByKeys(value[k]);
-          return acc;
-        }, {});
+        .reduce(
+          /**
+           * @param {{[key: string]: any}} acc - 累加器对象，此处明确声明它可以接受任意字符串作为键。
+           * @param {string} k - 当前属性键。
+           * @returns {{[key: string]: any}} - 返回更新后的累加器。
+           */
+          (acc, k) => {
+            acc[k] = sortObjectByKeys(value[k]);
+            return acc;
+          },
+          {}
+        );
     }
     return value;
   }
@@ -188,7 +210,7 @@ export function sortObjectByKeys(obj) {
 /**
  * 获取视频元数据
  * @param {string} filePath - 视频文件绝对路径
- * @returns {Promise<{hasAudio: boolean, duration: number, width: number, height: number, codecName: string, formatName: string, bitRate: number, frameRate: number, sampleRate: number, channels: number, channelLayout: string}>} 视频元数据
+ * @returns {Promise<import('./types').VideoMetadata>} 一个包含视频时长、宽度、高度、编解码器和格式名称的对象。
  */
 export async function getVideoMetadata(filePath) {
   try {
@@ -238,7 +260,7 @@ export async function getVideoMetadata(filePath) {
  * ffprobe 将某些图片（如 jpg）的流类型识别为 'video'，因此需要同时检查 'image' 和 'video'。
  *
  * @param {string} filePath - 图片文件的绝对路径。
- * @returns {Promise<{width: number, height: number, codecName: string}>} 一个包含图片宽度、高度和编解码器名称的对象。
+ * @returns {Promise<import('./types').ImageMetadata>} 一个包含图片宽度、高度和编解码器名称的对象。
  */
 async function getImageMetadata(filePath) {
   try {
@@ -274,7 +296,7 @@ async function getImageMetadata(filePath) {
 /**
  * 获取音频元数据
  * @param {string} filePath - 音频文件的绝对路径
- * @returns {Promise<{duration: number, sampleRate: number, channels: number, codecName: string, bitRate: number}>} 一个包含音频时长、采样率、声道数、编解码器和比特率的对象。
+ * @returns {Promise<import('./types').AudioMetadata>} 一个包含音频时长、采样率、声道数、编解码器和比特率的对象。
  */
 async function getAudioMetadata(filePath) {
   try {
@@ -316,7 +338,7 @@ async function getAudioMetadata(filePath) {
  * 计算剪映时间线指标
  * @param {number} realDurationInSeconds - 真实持续时间（秒）
  * @param {number} [fps=30] - 帧率
- * @returns {object} 时间线指标
+ * @returns {{totalFrames: number, timelineDurationInMicroseconds: number, remainingFrames : number}} 返回包含总帧数和时间轴时长的对象
  */
 export function calculateJianyingTimelineMetrics(
   realDurationInSeconds,

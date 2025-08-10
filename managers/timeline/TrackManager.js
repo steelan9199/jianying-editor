@@ -1,4 +1,12 @@
 // --- 文件: managers/timeline/TrackManager.js ---
+
+// --- 文件: JianYingEditor.js ---
+/**
+ * @typedef {import('../../types').Segment} Segment
+ */
+
+
+
 import { BaseManager } from "../properties/BaseManager.js";
 import { getRemainingFramesFromMicroseconds } from "../../helper.js";
 
@@ -21,9 +29,8 @@ export class TrackManager extends BaseManager {
   /**
    * 向指定轨道添加一个 segment
    * @param {string} trackId - 目标轨道的 ID
-   * @param {object} segmentData - 新 segment 的数据
-   * @param {string} segmentData.id - 新 segment 的 ID
-   * @returns {Object|null} 创建成功的新 segment 对象
+   * @param {Segment} segmentData - 新 segment 的数据
+   * @returns {Segment|null} 创建成功的新 segment 对象
    */
   addSegment(trackId, segmentData) {
     const track = this.getItemReference(trackId);
@@ -41,7 +48,7 @@ export class TrackManager extends BaseManager {
    * @param {string} trackId - 轨道 ID
    * @param {string} segmentId - 要更新的 segment ID
    * @param {Object} updates - 包含要更新的字段和新值的对象
-   * @returns {Object|null} 更新后的 segment 对象
+   * @returns {Segment|null} 更新后的 segment 对象
    */
   updateSegment(trackId, segmentId, updates) {
     const track = this.getItemReference(trackId);
