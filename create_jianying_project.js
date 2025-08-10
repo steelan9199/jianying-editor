@@ -57,7 +57,7 @@ function copyDirRecursive(src, dest) {
 /**
  * 创建一个新的剪映项目
  *
- * @param {string} [jianYingDraftsBasePath] - 剪映草稿基础路径（可选）
+ * @param {string} [draftLocation] - 剪映草稿基础路径（可选）
  * @returns {{projectRootDir: string, draftContentPath: string, projectId: string}} 项目元数据
  * @property {string} projectRootDir - 项目根目录路径
  * @property {string} draftContentPath - 项目内容文件路径
@@ -69,16 +69,14 @@ function copyDirRecursive(src, dest) {
  * console.log(projectMetaData.draftContentPath); // 项目内容文件路径
  * console.log(projectMetaData.projectId); // 项目ID
  */
-export function createNewProject(jianYingDraftsBasePath) {
-  if (!jianYingDraftsBasePath) {
+export function createNewProject(draftLocation) {
+  if (!draftLocation) {
     throw new Error("请提供剪映草稿位置");
   }
-  // 3. 剪映草稿的根目录 (请根据你的实际路径修改)
-  const JIANYING_DRAFTS_BASE_PATH = jianYingDraftsBasePath || String.raw`C:\Users\${process.env.USERNAME}\AppData\Local\JianyingPro\User Data\Projects\com.lveditor.draft`;
 
   // 生成新工程的名称和完整路径
   const NEW_PROJECT_NAME = getNewProjectName();
-  const projectRootDir = path.join(JIANYING_DRAFTS_BASE_PATH, NEW_PROJECT_NAME);
+  const projectRootDir = path.join(draftLocation, NEW_PROJECT_NAME);
 
   // 创建新工程文件夹
   fs.mkdirSync(projectRootDir, { recursive: true });
@@ -107,10 +105,10 @@ export function createNewProject(jianYingDraftsBasePath) {
   const draftMetaPath = path.join(projectRootDir, "draft_meta_info.json");
   const metaData = JSON.parse(fs.readFileSync(draftMetaPath, "utf-8"));
   // 注意：剪映在这里使用正斜杠 /
-  metaData.draft_fold_path = `${JIANYING_DRAFTS_BASE_PATH}/${NEW_PROJECT_NAME}`;
+  metaData.draft_fold_path = `${draftLocation}/${NEW_PROJECT_NAME}`;
   metaData.draft_name = NEW_PROJECT_NAME;
   metaData.draft_id = newDraftId;
-  metaData.draft_root_path = JIANYING_DRAFTS_BASE_PATH;
+  metaData.draft_root_path = draftLocation;
   // BigInt 需要转换为字符串或数字进行JSON序列化
   metaData.tm_draft_create = Number(currentTimestamp);
   metaData.tm_draft_modified = Number(currentTimestamp);

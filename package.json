@@ -37,6 +37,7 @@
     "create_jianying_project.js"
   ],
   "devDependencies": {
+    "@types/fluent-ffmpeg": "^2.1.27",
     "@types/node": "^24.2.1"
   }
 }

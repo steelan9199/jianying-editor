@@ -3,7 +3,7 @@ import { path as ffmpegPath } from "@ffmpeg-installer/ffmpeg";
 import { path as ffprobePath } from "@ffprobe-installer/ffprobe";
 import path from "path";
 import fs from "fs";
-import crypto from 'crypto';
+import crypto from "crypto";
 
 /**
  * @file 剪映编辑器工具函数集合
@@ -21,7 +21,7 @@ const VIDEO_EXTENSIONS = new Set([
   ".avi",
   ".mkv",
   ".webm",
-  ".flv"
+  ".flv",
 ]);
 const AUDIO_EXTENSIONS = new Set([
   ".mp3",
@@ -29,7 +29,7 @@ const AUDIO_EXTENSIONS = new Set([
   ".aac",
   ".flac",
   ".ogg",
-  ".m4a"
+  ".m4a",
 ]);
 const IMAGE_EXTENSIONS = new Set([
   ".jpg",
@@ -38,7 +38,7 @@ const IMAGE_EXTENSIONS = new Set([
   ".gif",
   ".webp",
   ".bmp",
-  ".tiff"
+  ".tiff",
 ]);
 
 /**
@@ -59,7 +59,9 @@ export function srtTimeToMicroseconds(srtTime) {
   const milliseconds = parseInt(timeMatch[4]);
 
   // 转换为微秒 (1秒 = 1,000,000微秒)
-  return (hours * 3600 + minutes * 60 + seconds) * 1000000 + milliseconds * 1000;
+  return (
+    (hours * 3600 + minutes * 60 + seconds) * 1000000 + milliseconds * 1000
+  );
 }
 
 /**
@@ -80,7 +82,9 @@ export function parseSrtFileToMicroseconds(srtFilePath) {
       if (isNaN(index)) return null;
 
       // 解析时间轴行，例如: "00:00:01,234 --> 00:00:05,678"
-      const timeMatch = lines[1].match(/(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/);
+      const timeMatch = lines[1].match(
+        /(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/
+      );
       if (!timeMatch) return null;
 
       const startTime = srtTimeToMicroseconds(timeMatch[1]);
@@ -93,7 +97,7 @@ export function parseSrtFileToMicroseconds(srtFilePath) {
         index,
         startTime,
         endTime,
-        text
+        text,
       };
     })
     .filter((item) => item !== null && !isNaN(item.index)); // 过滤掉无效的块
@@ -102,9 +106,15 @@ export function parseSrtFileToMicroseconds(srtFilePath) {
 }
 
 /**
- * 自动识别媒体文件类型并获取其元数据。
- * @param {string} filePath - 媒体文件的绝对路径。
- * @returns {Promise<{type: 'video'|'audio'|'image'|'unsupported', metadata: object}>} 包含类型和元数据的对象。
+ * 使用 ffprobe 获取媒体文件的元数据。
+ *
+ * @param {string} filePath - 媒体文件的路径。
+ * @returns {Promise<(
+ *   {type: 'video', metadata: {hasAudio: boolean, duration: number, width: number, height: number, codecName: string, formatName: string, bitRate: number, frameRate: number, sampleRate: number, channels: number, channelLayout: string}} |
+ *   {type: 'audio', metadata: {duration: number, sampleRate: number, channels: number, bitRate: number, codecName: string, formatName: string}} |
+ *   {type: 'image', metadata: {width: number, height: number, codecName: string, formatName: string}} |
+ *   {type: 'unsupported', metadata: {error: string}}
+ * )>} 返回一个包含媒体类型和元数据的对象。
  */
 export async function getMediaMetadata(filePath) {
   try {
@@ -178,82 +188,114 @@ export function sortObjectByKeys(obj) {
 /**
  * 获取视频元数据
  * @param {string} filePath - 视频文件绝对路径
- * @returns {Promise<{duration: number, width: number, height: number, fps: number}>} 视频元数据
+ * @returns {Promise<{hasAudio: boolean, duration: number, width: number, height: number, codecName: string, formatName: string, bitRate: number, frameRate: number, sampleRate: number, channels: number, channelLayout: string}>} 视频元数据
  */
 export async function getVideoMetadata(filePath) {
   try {
     const metadata = await new Promise((resolve, reject) => {
       ffmpeg.ffprobe(filePath, (err, data) => {
-        if (err) reject(err);
+        if (err) return reject(err);
         resolve(data);
       });
     });
 
-    // 提取关键信息
-    const videoStream = metadata.streams.find((stream) => stream.codec_type === "video");
-
+    const videoStream = metadata.streams.find(
+      (/** @type {{ codec_type: string }} */ s) => s.codec_type === "video"
+    );
     if (!videoStream) {
-      throw new Error("No video stream found");
+      throw new Error("文件中未找到视频流");
     }
 
-    const duration = metadata.format.duration;
+    const audioStream = metadata.streams.find(
+      (/** @type {{ codec_type: string }} */ s) => s.codec_type === "audio"
+    );
+
+    // 从 "30/1" 这样的字符串计算帧率
+    const [num, den] = videoStream.r_frame_rate.split("/").map(Number);
+    const frameRate = den > 0 ? num / den : 0;
+
     return {
-      duration: duration, // 转换为微秒
+      hasAudio: !!audioStream,
+      duration: Number(metadata.format.duration),
       width: videoStream.width,
       height: videoStream.height,
-      fps: videoStream.r_frame_rate
+      codecName: videoStream.codec_name,
+      formatName: metadata.format.format_name,
+      bitRate: Number(metadata.format.bit_rate),
+      frameRate: frameRate,
+      sampleRate: audioStream ? Number(audioStream.sample_rate) : 0,
+      channels: audioStream ? audioStream.channels : 0,
+      channelLayout: audioStream ? audioStream.channel_layout : "unknown",
     };
   } catch (err) {
-    console.error("Error getting video metadata:", err);
+    console.error("获取视频元数据时出错:", err);
     throw err;
   }
 }
 
 /**
- * 获取图片元数据
- * @param {string} filePath - 图片文件绝对路径
- * @returns {Promise<{width: number, height: number}>} 图片元数据
+ * 获取图片元数据。
+ * ffprobe 将某些图片（如 jpg）的流类型识别为 'video'，因此需要同时检查 'image' 和 'video'。
+ *
+ * @param {string} filePath - 图片文件的绝对路径。
+ * @returns {Promise<{width: number, height: number, codecName: string}>} 一个包含图片宽度、高度和编解码器名称的对象。
  */
 async function getImageMetadata(filePath) {
   try {
     const metadata = await new Promise((resolve, reject) => {
       ffmpeg.ffprobe(filePath, (err, data) => {
-        if (err) reject(err);
+        if (err) return reject(err);
         resolve(data);
       });
     });
 
     // 提取关键信息
-    const imageStream = metadata.streams.find((stream) => stream.codec_type === "video" || stream.codec_type === "image");
+    // 使用 JSDoc 为 stream 参数提供明确类型，避免 noImplicitAny 错误
+    const imageStream = metadata.streams.find(
+      (/** @type {{ codec_type: string; }} */ stream) =>
+        stream.codec_type === "video" || stream.codec_type === "image"
+    );
 
     if (!imageStream) {
-      throw new Error("No image stream found");
+      throw new Error("在文件中未找到图像流");
     }
 
     return {
       width: imageStream.width,
       height: imageStream.height,
-      codecName: imageStream.codec_name // e.g., 'png', 'mjpeg' (for jpg), 'webp'
+      codecName: imageStream.codec_name, // 例如: 'png', 'mjpeg' (用于jpg), 'webp'
     };
   } catch (err) {
-    console.error("Error getting image metadata:", err);
+    console.error("获取图片元数据时出错:", err);
     throw err;
   }
 }
 
 /**
  * 获取音频元数据
- * @param {string} filePath - 音频文件绝对路径
- * @returns {Promise<{duration: number}>} 音频元数据
+ * @param {string} filePath - 音频文件的绝对路径
+ * @returns {Promise<{duration: number, sampleRate: number, channels: number, codecName: string, bitRate: number}>} 一个包含音频时长、采样率、声道数、编解码器和比特率的对象。
  */
 async function getAudioMetadata(filePath) {
   try {
     const metadata = await new Promise((resolve, reject) => {
       ffmpeg.ffprobe(filePath, (err, data) => {
-        if (err) reject(err);
+        if (err) return reject(err);
         resolve(data);
       });
     });
+
+    // Bug修复：必须先从元数据中查找音频流
+    const audioStream = metadata.streams.find(
+      (/** @type {{ codec_type: string; }} */ stream) =>
+        stream.codec_type === "audio"
+    );
+
+    // 增加健壮性检查
+    if (!audioStream) {
+      throw new Error("在文件中未找到音频流");
+    }
+
     const duration = metadata.format.duration;
 
     return {
@@ -262,10 +304,10 @@ async function getAudioMetadata(filePath) {
       channels: audioStream.channels, // 声道数 (e.g., 1 for mono, 2 for stereo)
       codecName: audioStream.codec_name, // 编码格式 (e.g., 'mp3', 'aac')
       // 比特率可能在 format 或 stream 中，从 stream 获取更精确，并转为数字
-      bitRate: parseInt(audioStream.bit_rate || metadata.format.bit_rate, 10)
+      bitRate: parseInt(audioStream.bit_rate || metadata.format.bit_rate, 10),
     };
   } catch (err) {
-    console.error("Error getting audio metadata:", err);
+    console.error("获取音频元数据时出错:", err);
     throw err;
   }
 }
@@ -276,14 +318,17 @@ async function getAudioMetadata(filePath) {
  * @param {number} [fps=30] - 帧率
  * @returns {object} 时间线指标
  */
-export function calculateJianyingTimelineMetrics(realDurationInSeconds, fps = 30) {
+export function calculateJianyingTimelineMetrics(
+  realDurationInSeconds,
+  fps = 30
+) {
   // --- 参数校验 ---
   if (typeof realDurationInSeconds !== "number" || realDurationInSeconds < 0) {
     console.error("输入错误: 时长必须是一个非负数字。");
     return {
       totalFrames: 0,
       timelineDurationInMicroseconds: 0,
-      remainingFrames: 0
+      remainingFrames: 0,
     };
   }
 
@@ -291,7 +336,7 @@ export function calculateJianyingTimelineMetrics(realDurationInSeconds, fps = 30
     return {
       totalFrames: 0,
       timelineDurationInMicroseconds: 0,
-      remainingFrames: 0
+      remainingFrames: 0,
     };
   }
 
@@ -306,7 +351,7 @@ export function calculateJianyingTimelineMetrics(realDurationInSeconds, fps = 30
     return {
       totalFrames: 0,
       timelineDurationInMicroseconds: 0,
-      remainingFrames: 0
+      remainingFrames: 0,
     };
   }
 
@@ -326,7 +371,7 @@ export function calculateJianyingTimelineMetrics(realDurationInSeconds, fps = 30
   return {
     totalFrames,
     timelineDurationInMicroseconds,
-    remainingFrames
+    remainingFrames,
   };
 }
 
@@ -395,7 +440,10 @@ export function scaleDimensions(width, height) {
   // 我们必须同时满足这两个规则，所以需要取两个比例中更大的那个。
   // 这样可以保证，即使满足了规则2后规则1没达成（例如超宽视频），
   // 也会被强制拉升到满足规则1。
-  const effectiveScale = Math.max(scaleForMinRequirement, scaleForTargetRequirement);
+  const effectiveScale = Math.max(
+    scaleForMinRequirement,
+    scaleForTargetRequirement
+  );
 
   // 确保尺寸只放大，不缩小。如果计算出的比例小于1，则保持原样（比例为1）。
   const finalScale = Math.max(1, effectiveScale);
@@ -406,6 +454,6 @@ export function scaleDimensions(width, height) {
 
   return {
     width: newWidth,
-    height: newHeight
+    height: newHeight,
   };
 }

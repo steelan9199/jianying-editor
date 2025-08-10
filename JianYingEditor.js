@@ -44,11 +44,11 @@ import {
 export class JianYingEditor {
   /**
    * 创建一个剪映编辑器实例，并同步加载和初始化项目
-   * @param {string} [jianYingDraftsBasePath] - 可选的剪映草稿基础路径
+   * @param {string} [draftLocation] - 可选的剪映草稿基础路径
    * @throws {Error} 如果加载或初始化失败
    */
-  constructor(jianYingDraftsBasePath) {
-    const projectMetaData = createNewProject(jianYingDraftsBasePath);
+  constructor(draftLocation) {
+    const projectMetaData = createNewProject(draftLocation);
     this.draftContentPath = projectMetaData.draftContentPath;
     this.projectId = projectMetaData.projectId;
     this.projectRootDir = projectMetaData.projectRootDir;
@@ -214,46 +214,91 @@ export class JianYingEditor {
    */
   getLastClipInTrack(trackId) {
     const allTracks = this.trackManager.get();
-    const mainTrack = allTracks.find((t) => t.id === trackId);
-    const clips = this.trackManager.getClips(trackId);
-    if (clips.length > 0) {
-      return clips[clips.length - 1];
+    // 查找指定ID的轨道
+    const mainTrack = allTracks.find(
+      (/** @type {{ id: string; segments: any[]; }} */ t) => t.id === trackId
+    );
+
+    // 检查轨道是否存在，以及轨道上是否有片段
+    if (mainTrack && mainTrack.segments && mainTrack.segments.length > 0) {
+      // 返回最后一个片段
+      return mainTrack.segments[mainTrack.segments.length - 1];
     }
     return null;
   }
 
   /**
-   * 打印媒体元数据信息
-   * @param {Object} mediaMetadata - 媒体元数据对象
+   * 打印格式化后的媒体元数据信息到控制台.
+   *
+   * @param {(
+   *   {type: 'video', metadata: {hasAudio: boolean, duration: number, width: number, height: number, codecName: string, formatName: string, bitRate: number, frameRate: number, sampleRate: number, channels: number, channelLayout: string}} |
+   *   {type: 'audio', metadata: {duration: number, sampleRate: number, channels: number, bitRate: number, codecName: string, formatName: string}} |
+   *   {type: 'image', metadata: {width: number, height: number, codecName: string, formatName: string}} |
+   *   {type: 'unsupported', metadata: {error: string}}
+   * )} mediaMetadata - 包含媒体类型和具体元数据的对象.
+   * @returns {void}
+   *
+   * @example
+   * const videoMeta = {
+   *   type: 'video',
+   *   metadata: { duration: 10.5, width: 1920, height: 1080, hasAudio: true, codecName: 'h264' }
+   * };
+   * logMediaMetadata(videoMeta);
+   * // 输出:
+   * // Detected Type: Video
+   * // Duration: 10.5s, Dimensions: 1920x1080, Codec: h264, Audio: Yes
    */
   logMediaMetadata(mediaMetadata) {
     switch (mediaMetadata.type) {
-      case "video":
-        console.log("Detected Type: Video");
+      case "video": {
+        const { duration, width, height, codecName, hasAudio, frameRate } =
+          mediaMetadata.metadata;
+        console.log("媒体类型: 视频 (Video)");
         console.log(
-          `Duration: ${mediaMetadata.metadata.duration}s, Dimensions: ${mediaMetadata.metadata.width}x${mediaMetadata.metadata.height}`
+          `  - 尺寸: ${width}x${height}`,
+          `| 时长: ${duration.toFixed(2)}s`,
+          `| 帧率: ${frameRate.toFixed(2)}fps`,
+          `| 编码: ${codecName}`,
+          `| 音频: ${hasAudio ? "是" : "否"}`
         );
         break;
-
-      case "audio":
-        console.log("Detected Type: Audio");
+      }
+      case "audio": {
+        const { duration, sampleRate, codecName, bitRate } =
+          mediaMetadata.metadata;
+        console.log("媒体类型: 音频 (Audio)");
         console.log(
-          `Duration: ${mediaMetadata.metadata.duration}s, Sample Rate: ${mediaMetadata.metadata.sampleRate}Hz`
+          `  - 时长: ${duration.toFixed(2)}s`,
+          `| 采样率: ${sampleRate}Hz`,
+          `| 编码: ${codecName}`,
+          `| 比特率: ${(bitRate / 1000).toFixed(0)}kbps`
         );
         break;
-
-      case "image":
-        console.log("Detected Type: Image");
-        console.log(
-          `Dimensions: ${mediaMetadata.metadata.width}x${mediaMetadata.metadata.height}, Codec: ${mediaMetadata.metadata.codecName}`
-        );
+      }
+      case "image": {
+        const { width, height, codecName } = mediaMetadata.metadata;
+        console.log("媒体类型: 图片 (Image)");
+        console.log(`  - 尺寸: ${width}x${height}`, `| 编码: ${codecName}`);
         break;
+      }
+      case "unsupported": {
+        console.warn("媒体类型: 不支持 (Unsupported)");
+        console.warn(`  - 错误: ${mediaMetadata.metadata.error}`);
+        break;
+      }
+      default:
+        // 使用一个 never 类型来做详尽性检查，如果 mediaMetadata.type 有新的可能类型而 case 未处理，TypeScript 会报错
+        // const exhaustiveCheck: never = mediaMetadata;
+        console.log("未知的媒体类型");
+      // return exhaustiveCheck;
     }
   }
 
   /**
    * (高级业务方法) 向时间轴插入一个视频片段
    * @param {string} videoPath - 视频文件的本地路径
+   * @param {string} trackId - 要插入视频片段的目标轨道ID。
+   * @param {{start: number, duration: number}} target_timerange - 片段在时间轴上的目标时间范围，包含起始时间和持续时间（单位：微秒）。
    */
   async insertVideoClip(videoPath, trackId, target_timerange) {
     console.log(styleText("green", `--- 开始执行高级业务：插入视频片段 ---\n`));
@@ -266,6 +311,12 @@ export class JianYingEditor {
     }
     console.log(`获取视频元信息, 文件路径: ${videoPath}`);
     const mediaMetadata = await getMediaMetadata(videoPath);
+    // 类型守卫：在处理前，先检查并确保媒体类型是 'video'
+    if (mediaMetadata.type !== "video") {
+      throw new Error(
+        `提供的文件不是视频文件。期望 'video'，但得到 '${mediaMetadata.type}'。路径: ${videoPath}`
+      );
+    }
     this.logMediaMetadata(mediaMetadata);
 
     const videoMetadata = mediaMetadata.metadata;
@@ -513,6 +564,12 @@ export class JianYingEditor {
     }
     console.log(`获取音频元信息, 文件路径: ${audioPath}`);
     const mediaMetadata = await getMediaMetadata(audioPath);
+    // 1. 类型守卫：在处理前，先检查并确保媒体类型是 'audio'
+    if (mediaMetadata.type !== "audio") {
+      throw new Error(
+        `提供的文件不是音频文件。期望 'audio'，但得到 '${mediaMetadata.type}'。路径: ${audioPath}`
+      );
+    }
     this.logMediaMetadata(mediaMetadata);
 
     const audioMetadata = mediaMetadata.metadata;
