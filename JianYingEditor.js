@@ -117,6 +117,12 @@ export class JianYingEditor {
     try {
       // const sortedData = sortObjectByKeys(this.projectData);
       // const jsonString = JSON.stringify(sortedData, null, 2);
+
+      // 计算总时长
+      const totalDuration = this.trackManager.getTotalDuration();
+      console.log("totalDuration", totalDuration);
+      this.projectData.duration = totalDuration;
+
       const jsonString = JSON.stringify(this.projectData);
       await fs.promises.writeFile(this.draftContentPath, jsonString, "utf-8");
       console.log("Project saved successfully.");

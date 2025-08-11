@@ -70,8 +70,4 @@ await jianYingEditor.insertTextClip({
   textType: "subtitle"
 });
 
-// 计算总时长
-const totalDuration = jianYingEditor.trackManager.getTotalDuration();
-console.log("totalDuration", totalDuration);
-jianYingEditor.projectData.duration = totalDuration;
 await jianYingEditor.save();
