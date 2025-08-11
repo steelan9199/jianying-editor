@@ -1,6 +1,6 @@
 {
   "name": "jianying-editor",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "一个用于自动化剪映视频编辑的工具库",
   "main": "index.js",
   "type": "module",
