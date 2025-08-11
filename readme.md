@@ -7,11 +7,6 @@
 剪映5.9.0版本下载  
 https://pan.quark.cn/s/ab06d169eff0  
 
-[![NPM Version](https://img.shields.io/npm/v/jianying-editor.svg)](https://www.npmjs.com/package/jianying-editor)
-[![License](https://img.shields.io/npm/l/jianying-editor.svg)](https://github.com/steelan9199/jianying-editor/blob/main/LICENSE)
-
-
-
 ## 安装
 
 ```bash
