@@ -1,23 +1,20 @@
 {
   "name": "jianying-editor",
   "version": "1.0.0",
-  "description": "一个用于自动化剪映视频编辑的工具库",
+  "description": "一个用于剪映自动化视频编辑的工具库",
   "main": "JianYingEditor.js",
   "type": "module",
   "scripts": {
     "test": "node index.js"
   },
   "keywords": [
-    "jianying",
-    "video",
-    "automation",
-    "editor"
+    "jianying"
   ],
-  "author": "Your Name",
+  "author": "YaShu",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourname/jianying-editor.git"
+    "url": "https://github.com/steelan9199/jianying-editor"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
@@ -33,7 +30,7 @@
     "create_jianying_project.js",
     "emptyProject.json",
     "helper.js",
-    "index.js"
+    "example.js"
   ],
   "devDependencies": {
     "@types/fluent-ffmpeg": "^2.1.27",
