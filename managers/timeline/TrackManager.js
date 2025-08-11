@@ -1,6 +1,5 @@
 // --- 文件: managers/timeline/TrackManager.js ---
 
-// --- 文件: JianYingEditor.js ---
 /**
  * @typedef {import('../../types').Segment} Segment
  */
@@ -41,11 +40,11 @@ export class TrackManager extends BaseManager {
       id: generateId(),
       is_default_name: true,
       name: "",
-      segments: [],
+      segments: []
     };
     trackMetadata = {
       ...defaultTemplate,
-      ...trackMetadata,
+      ...trackMetadata
     };
     return super.create(trackMetadata); // 调用父类的 create 方法
   }
@@ -82,9 +81,7 @@ export class TrackManager extends BaseManager {
       return null;
     }
 
-    const segmentIndex = track.segments.findIndex(
-      /** @param {{id: string}} seg */ (seg) => seg.id === segmentId
-    );
+    const segmentIndex = track.segments.findIndex(/** @param {{id: string}} seg */ (seg) => seg.id === segmentId);
     if (segmentIndex === -1) {
       console.warn(`在 track ${trackId} 中未找到ID为 ${segmentId} 的 segment`);
       return null;
@@ -92,7 +89,7 @@ export class TrackManager extends BaseManager {
 
     track.segments[segmentIndex] = {
       ...track.segments[segmentIndex],
-      ...updates,
+      ...updates
     };
 
     return track.segments[segmentIndex];
@@ -104,8 +101,7 @@ export class TrackManager extends BaseManager {
     for (const track of tracks) {
       for (const segment of track.segments) {
         if (segment.target_timerange) {
-          const currentTotalDuration =
-            segment.target_timerange.start + segment.target_timerange.duration;
+          const currentTotalDuration = segment.target_timerange.start + segment.target_timerange.duration;
           if (currentTotalDuration > totalDuration) {
             totalDuration = currentTotalDuration;
           }
@@ -130,8 +126,7 @@ export class TrackManager extends BaseManager {
     let trackDuration = 0;
     for (const segment of track.segments) {
       if (segment.target_timerange) {
-        const segmentEnd =
-          segment.target_timerange.start + segment.target_timerange.duration;
+        const segmentEnd = segment.target_timerange.start + segment.target_timerange.duration;
         if (segmentEnd > trackDuration) {
           trackDuration = segmentEnd;
         }
@@ -211,13 +206,9 @@ export class TrackManager extends BaseManager {
       return false;
     }
 
-    const segmentIndex = track.segments.findIndex(
-      /** @param {{id: string}} seg */ (seg) => seg.id === segmentId
-    );
+    const segmentIndex = track.segments.findIndex(/** @param {{id: string}} seg */ (seg) => seg.id === segmentId);
     if (segmentIndex === -1) {
-      console.warn(
-        `在 track ${trackId} 中未找到ID为 ${segmentId} 的 segment，无法删除`
-      );
+      console.warn(`在 track ${trackId} 中未找到ID为 ${segmentId} 的 segment，无法删除`);
       return false;
     }
 

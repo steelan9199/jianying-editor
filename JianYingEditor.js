@@ -26,18 +26,11 @@ import {
   CanvasManager,
   SoundChannelMappingManager,
   VocalSeparationManager,
-  MaterialAnimationManager,
+  MaterialAnimationManager
   // ...等等，未来需要哪个就在这里加哪个名字
 } from "./managers/index.js"; // 直接从总入口导入
 
-import {
-  sortObjectByKeys,
-  scaleDimensions,
-  getMediaMetadata,
-  generateId,
-  calculateJianyingTimelineMetrics,
-  getRemainingFramesFromMicroseconds,
-} from "./helper.js";
+import { sortObjectByKeys, parseSrtFileToMicroseconds, scaleDimensions, getMediaMetadata, generateId, calculateJianyingTimelineMetrics, getRemainingFramesFromMicroseconds } from "./helper.js";
 
 /**
  * @class JianYingEditor
@@ -62,12 +55,7 @@ export class JianYingEditor {
     this.projectId = projectMetaData.projectId;
     this.projectRootDir = projectMetaData.projectRootDir;
     this.projectData = null;
-    console.log(
-      styleText(
-        "green",
-        `✅ 新建剪映工程: projectId: ${this.projectId}\n✅ 工程draft_content文件路径: ${this.draftContentPath}`
-      )
-    );
+    console.log(styleText("green", `✅ 新建剪映工程: projectId: ${this.projectId}\n✅ 工程draft_content文件路径: ${this.draftContentPath}`));
 
     // --- 同步加载项目文件 ---
     try {
@@ -86,10 +74,7 @@ export class JianYingEditor {
     // 重置项目数据到 emptyProject.json
     try {
       const emptyProjectFilePath = "./emptyProject.json";
-      const emptyProjectContent = fs.readFileSync(
-        emptyProjectFilePath,
-        "utf-8"
-      );
+      const emptyProjectContent = fs.readFileSync(emptyProjectFilePath, "utf-8");
       const emptyProjectData = JSON.parse(emptyProjectContent);
       emptyProjectData.id = this.projectData.id; // 保持原项目的ID
       this.projectData = emptyProjectData;
@@ -109,25 +94,15 @@ export class JianYingEditor {
     this.imageManager = new ImageManager(materials.videos); // 注意：这里使用的 materials.videos 可能有误，ImageManager 可能需要 materials.images
     this.subtitleManager = new SubtitleManager(materials.texts);
     this.titleManager = new TitleManager(materials.texts);
-    this.materialAnimationManager = new MaterialAnimationManager(
-      materials.material_animations
-    );
-    this.lyricsTaskInfoManager = new LyricsTaskInfoManager(
-      projectData.config.lyrics_taskinfo
-    );
+    this.materialAnimationManager = new MaterialAnimationManager(materials.material_animations);
+    this.lyricsTaskInfoManager = new LyricsTaskInfoManager(projectData.config.lyrics_taskinfo);
     this.beatManager = new BeatManager(materials.beats);
     this.trackManager = new TrackManager(projectData.tracks);
     this.speedManager = new SpeedManager(materials.speeds);
     this.canvasManager = new CanvasManager(materials.canvases);
-    this.soundChannelMappingManager = new SoundChannelMappingManager(
-      materials.sound_channel_mappings
-    );
-    this.vocalSeparationManager = new VocalSeparationManager(
-      materials.vocal_separations
-    );
+    this.soundChannelMappingManager = new SoundChannelMappingManager(materials.sound_channel_mappings);
+    this.vocalSeparationManager = new VocalSeparationManager(materials.vocal_separations);
     console.log("部门经理, 各就各位 (synchronously)");
-
-    // 注意：getMediaMetadata 如果是异步的，在 insertVideoClip 等方法中使用时仍然需要 await
   }
 
   /**
@@ -157,7 +132,7 @@ export class JianYingEditor {
     // 正确的顺序：先展开旧对象，再用新对象的属性去覆盖它
     this.projectData.canvas_config = {
       ...this.projectData.canvas_config, // 1. 保留所有旧属性 (如 ratio)
-      ...newDimensions, // 2. 用新的 width 和 height 覆盖旧的
+      ...newDimensions // 2. 用新的 width 和 height 覆盖旧的
     };
   }
 
@@ -170,7 +145,7 @@ export class JianYingEditor {
     return this.trackManager.create({
       type: "video",
       name: "视频轨道",
-      id: generateId(),
+      id: generateId()
     });
   }
 
@@ -183,7 +158,7 @@ export class JianYingEditor {
     return this.trackManager.create({
       type: "audio",
       name: "音频轨道",
-      id: generateId(),
+      id: generateId()
     });
   }
   /**
@@ -193,10 +168,11 @@ export class JianYingEditor {
   addSubtitleTrack() {
     console.log("总指挥下令：创建一条新的字幕轨道！");
     return this.trackManager.create({
+      // @ts-ignore
       flag: 3,
       type: "text",
       name: "字幕轨道",
-      id: generateId(),
+      id: generateId()
     });
   }
   /**
@@ -206,10 +182,11 @@ export class JianYingEditor {
   addTitleTrack() {
     console.log("总指挥下令：创建一条新的标题轨道！");
     return this.trackManager.create({
+      // @ts-ignore
       flag: 0,
       type: "text",
       name: "标题轨道",
-      id: generateId(),
+      id: generateId()
     });
   }
 
@@ -222,9 +199,7 @@ export class JianYingEditor {
   getLastClipInTrack(trackId) {
     const allTracks = this.trackManager.get();
     // 查找指定ID的轨道
-    const mainTrack = allTracks.find(
-      (/** @type {{ id: string; segments: any[]; }} */ t) => t.id === trackId
-    );
+    const mainTrack = allTracks.find((/** @type {{ id: string; segments: any[]; }} */ t) => t.id === trackId);
 
     // 检查轨道是否存在，以及轨道上是否有片段
     if (mainTrack && mainTrack.segments && mainTrack.segments.length > 0) {
@@ -258,28 +233,15 @@ export class JianYingEditor {
   logMediaMetadata(mediaMetadata) {
     switch (mediaMetadata.type) {
       case "video": {
-        const { duration, width, height, codecName, hasAudio, frameRate } =
-          mediaMetadata.metadata;
+        const { duration, width, height, codecName, hasAudio, frameRate } = mediaMetadata.metadata;
         console.log("媒体类型: 视频 (Video)");
-        console.log(
-          `  - 尺寸: ${width}x${height}`,
-          `| 时长: ${duration.toFixed(2)}s`,
-          `| 帧率: ${frameRate.toFixed(2)}fps`,
-          `| 编码: ${codecName}`,
-          `| 音频: ${hasAudio ? "是" : "否"}`
-        );
+        console.log(`  - 尺寸: ${width}x${height}`, `| 时长: ${duration.toFixed(2)}s`, `| 帧率: ${frameRate.toFixed(2)}fps`, `| 编码: ${codecName}`, `| 音频: ${hasAudio ? "是" : "否"}`);
         break;
       }
       case "audio": {
-        const { duration, sampleRate, codecName, bitRate } =
-          mediaMetadata.metadata;
+        const { duration, sampleRate, codecName, bitRate } = mediaMetadata.metadata;
         console.log("媒体类型: 音频 (Audio)");
-        console.log(
-          `  - 时长: ${duration.toFixed(2)}s`,
-          `| 采样率: ${sampleRate}Hz`,
-          `| 编码: ${codecName}`,
-          `| 比特率: ${(bitRate / 1000).toFixed(0)}kbps`
-        );
+        console.log(`  - 时长: ${duration.toFixed(2)}s`, `| 采样率: ${sampleRate}Hz`, `| 编码: ${codecName}`, `| 比特率: ${(bitRate / 1000).toFixed(0)}kbps`);
         break;
       }
       case "image": {
@@ -307,7 +269,7 @@ export class JianYingEditor {
    * @param {object} params - 参数对象.
    * @param {string} params.videoPath - 视频文件的本地路径.
    * @param {string} params.trackName - 要插入视频片段的目标轨道名字.
-   * @param {{start: number, duration: number}} params.target_timerange - 片段在时间轴上的目标时间范围，包含起始时间和持续时间（单位：微秒）.
+   * @param {{start: number, duration: number}} [params.target_timerange] - 片段在时间轴上的目标时间范围，包含起始时间和持续时间（单位：微秒）.
    * @returns {Promise<object|null>} 新创建的视频片段对象，或在失败时返回 null.
    */
   async insertVideoClip({ videoPath, trackName, target_timerange }) {
@@ -315,33 +277,38 @@ export class JianYingEditor {
     if (!trackName) {
       throw new Error("未指定轨道名字");
     }
-    if (!target_timerange) {
-      console.log("target_timerange", target_timerange);
-      throw new Error("未指定素材片段在时间轴上的位置和时长");
-    }
-    console.log(`获取视频元信息, 文件路径: ${videoPath}`);
-    const track = this.trackManager.getTrackByTrackName(trackName) 
-    const trackId = track.id
+
+    const track = this.trackManager.getTrackByTrackName(trackName);
+    const trackId = track.id;
     const mediaMetadata = await getMediaMetadata(videoPath);
     // 类型守卫：在处理前，先检查并确保媒体类型是 'video'
     if (mediaMetadata.type !== "video") {
-      throw new Error(
-        `提供的文件不是视频文件。期望 'video'，但得到 '${mediaMetadata.type}'。路径: ${videoPath}`
-      );
+      throw new Error(`提供的文件不是视频文件。期望 'video'，但得到 '${mediaMetadata.type}'。路径: ${videoPath}`);
     }
     /**
      * Logs media metadata for a video.
      * The cast is used here to specify the expected type for logging.
      * @param {MediaMetadataResult} mediaMetadata - The media metadata object.
      */
-    this.logMediaMetadata(
-      /** @type {{type: 'video', metadata: VideoMetadata}} */ (mediaMetadata)
-    );
+    this.logMediaMetadata(/** @type {{type: 'video', metadata: VideoMetadata}} */ (mediaMetadata));
     const videoMetadata = /** @type {VideoMetadata} */ (mediaMetadata.metadata);
     // 视频时长duration秒 6.455011
     // 视频时长durationInMicroseconds微秒 6455011
+
+    if (!target_timerange) {
+      const trackDuration = this.trackManager.getTrackDuration(trackId);
+      const timelineMetrics = calculateJianyingTimelineMetrics(videoMetadata.duration);
+      // 计算视频轨道的当前的总时长, 作为start,
+      // 视频的时长, 作为duration
+      target_timerange = {
+        start: trackDuration,
+        duration: timelineMetrics.timelineDurationInMicroseconds
+      };
+    }
+
     // 2. 在素材库中创建视频素材记录
     console.log("正在创建视频素材记录...");
+    const has_audio = videoMetadata.hasAudio;
     const newVideoMaterial = this.videoManager.create({
       aigc_type: "none",
       audio_fade: null,
@@ -357,16 +324,15 @@ export class JianYingEditor {
         upper_left_x: 0,
         upper_left_y: 0,
         upper_right_x: 1,
-        upper_right_y: 0,
+        upper_right_y: 0
       },
       crop_ratio: "free",
       crop_scale: 1,
-      duration: calculateJianyingTimelineMetrics(videoMetadata.duration)
-        .timelineDurationInMicroseconds,
+      duration: calculateJianyingTimelineMetrics(videoMetadata.duration).timelineDurationInMicroseconds,
       extra_type_option: 0,
       formula_id: "",
       freeze: null,
-      has_audio: false,
+      has_audio: has_audio,
       height: videoMetadata.height,
       id: generateId(),
       intensifies_audio_path: "",
@@ -386,12 +352,12 @@ export class JianYingEditor {
         has_use_quick_eraser: false,
         interactiveTime: [],
         path: "",
-        strokes: [],
+        strokes: []
       },
       media_path: "",
       object_locked: null,
       origin_material_id: "",
-      path: videoPath.replace(/\\/g, "/"),
+      path: path.resolve(videoPath).replace(/\\/g, "/"),
       picture_from: "none",
       picture_set_category_id: "",
       picture_set_category_name: "",
@@ -406,8 +372,8 @@ export class JianYingEditor {
         stable_level: 0,
         time_range: {
           duration: 0,
-          start: 0,
-        },
+          start: 0
+        }
       },
       team_id: "",
       type: "video",
@@ -420,9 +386,9 @@ export class JianYingEditor {
         noise_reduction: null,
         path: "",
         quality_enhance: null,
-        time_range: null,
+        time_range: null
       },
-      width: videoMetadata.width,
+      width: videoMetadata.width
     });
 
     const speed = this.speedManager.create({
@@ -430,8 +396,9 @@ export class JianYingEditor {
       id: generateId(),
       mode: 0,
       speed: 1,
-      type: "speed",
+      type: "speed"
     });
+
     const canvas = this.canvasManager.create({
       album_image: "",
       blur: 0,
@@ -442,13 +409,13 @@ export class JianYingEditor {
       image_name: "",
       source_platform: 0,
       team_id: "",
-      type: "canvas_color",
+      type: "canvas_color"
     });
     const sound_channel_mapping = this.soundChannelMappingManager.create({
       audio_channel_mapping: 0,
       id: generateId(),
       is_config_open: false,
-      type: "",
+      type: ""
     });
 
     const vocalSeparation = this.vocalSeparationManager.create({
@@ -456,15 +423,10 @@ export class JianYingEditor {
       id: generateId(),
       production_path: "",
       time_range: null,
-      type: "vocal_separation",
+      type: "vocal_separation"
     });
 
-    const extra_material_refs = [
-      speed.id,
-      canvas.id,
-      sound_channel_mapping.id,
-      vocalSeparation.id,
-    ];
+    const extra_material_refs = [speed.id, canvas.id, sound_channel_mapping.id, vocalSeparation.id];
     // materials.speeds
     // materials.canvases
     // materials.sound_channel_mappings
@@ -480,17 +442,17 @@ export class JianYingEditor {
         alpha: 1,
         flip: {
           horizontal: false,
-          vertical: false,
+          vertical: false
         },
         rotation: 0,
         scale: {
           x: 1,
-          y: 1,
+          y: 1
         },
         transform: {
           x: 0,
-          y: 0,
-        },
+          y: 0
+        }
       },
       common_keyframes: [],
       enable_adjust: true,
@@ -505,7 +467,7 @@ export class JianYingEditor {
       hdr_settings: {
         intensity: 1,
         mode: 1,
-        nits: 1000,
+        nits: 1000
       },
       id: generateId(),
       intensifies_audio: false,
@@ -520,13 +482,12 @@ export class JianYingEditor {
         horizontal_pos_layout: 0,
         size_layout: 0,
         target_follow: "",
-        vertical_pos_layout: 0,
+        vertical_pos_layout: 0
       },
       reverse: false,
       source_timerange: {
         start: 0,
-        duration: calculateJianyingTimelineMetrics(videoMetadata.duration)
-          .timelineDurationInMicroseconds,
+        duration: calculateJianyingTimelineMetrics(videoMetadata.duration).timelineDurationInMicroseconds
       },
       speed: 1,
       target_timerange: target_timerange,
@@ -536,23 +497,14 @@ export class JianYingEditor {
       track_render_index: 0,
       uniform_scale: {
         on: true,
-        value: 1,
+        value: 1
       },
       visible: true,
-      volume: 1,
+      volume: 1
     };
 
-    const trackRemainingFrames = getRemainingFramesFromMicroseconds(
-      segment.target_timerange.start
-    );
-    console.log("trackRemainingFrames", trackRemainingFrames);
-    const currentMaterialRemainingFrames = getRemainingFramesFromMicroseconds(
-      segment.source_timerange.duration
-    );
-    console.log(
-      "currentMaterialRemainingFrames",
-      currentMaterialRemainingFrames
-    );
+    const trackRemainingFrames = getRemainingFramesFromMicroseconds(segment.target_timerange.start);
+    const currentMaterialRemainingFrames = getRemainingFramesFromMicroseconds(segment.source_timerange.duration);
 
     if (trackRemainingFrames + currentMaterialRemainingFrames >= 3) {
       segment.target_timerange.duration += 1;
@@ -569,26 +521,24 @@ export class JianYingEditor {
   }
   /**
    * (高级业务方法) 向时间轴插入一个音频片段
-   * @param {string} audioPath - 音频文件的本地路径
-   * @param {string} trackId - 要插入音频片段的目标轨道ID。
-   * @param {{start: number, duration: number}} target_timerange - 片段在时间轴上的目标时间范围，包含起始时间和持续时间（单位：微秒）。
+   * @param {object} params - 参数对象.
+   * @param {string} params.audioPath - 音频文件的本地路径.
+   * @param {string} params.trackName - 要插入音频片段的目标轨道名字。
+   * @param {{start: number, duration: number}} [params.target_timerange] - 片段在时间轴上的目标时间范围，包含起始时间和持续时间（单位：微秒）.
+   * @returns {Promise<object|null>} 新创建的音频片段对象，或在失败时返回 null.
    */
-  async insertAudioClip(audioPath, trackId, target_timerange) {
+  async insertAudioClip({ audioPath, trackName, target_timerange }) {
     console.log(styleText("green", `--- 开始执行高级业务：插入音频片段 ---\n`));
-    if (!trackId) {
-      throw new Error("未指定轨道ID");
+    if (!trackName) {
+      throw new Error("未指定轨道名字");
     }
-    if (!target_timerange) {
-      console.log("target_timerange", target_timerange);
-      throw new Error("未指定素材片段在时间轴上的位置和时长");
-    }
+    const track = this.trackManager.getTrackByTrackName(trackName);
+    const trackId = track.id;
     console.log(`获取音频元信息, 文件路径: ${audioPath}`);
     const mediaMetadata = await getMediaMetadata(audioPath);
     // 1. 类型守卫：在处理前，先检查并确保媒体类型是 'audio'
     if (mediaMetadata.type !== "audio") {
-      throw new Error(
-        `提供的文件不是音频文件。期望 'audio'，但得到 '${mediaMetadata.type}'。路径: ${audioPath}`
-      );
+      throw new Error(`提供的文件不是音频文件。期望 'audio'，但得到 '${mediaMetadata.type}'。路径: ${audioPath}`);
     }
 
     /**
@@ -596,9 +546,7 @@ export class JianYingEditor {
      * The cast is used here to specify the expected type for logging.
      * @param {import("./types").MediaMetadataResult} mediaMetadata - The media metadata object.
      */
-    this.logMediaMetadata(
-      /** @type {{type: 'audio', metadata: AudioMetadata}} */ (mediaMetadata)
-    );
+    this.logMediaMetadata(/** @type {{type: 'audio', metadata: AudioMetadata}} */ (mediaMetadata));
     const audioMetadata = /** @type {AudioMetadata} */ (mediaMetadata.metadata);
     // 返回一个包含关键音频信息的对象
     // return {
@@ -609,17 +557,25 @@ export class JianYingEditor {
     //   // 比特率可能在 format 或 stream 中，从 stream 获取更精确，并转为数字
     //   bitRate: parseInt(audioStream.bit_rate || metadata.format.bit_rate, 10),
     // };
-
+    if (!target_timerange) {
+      const trackDuration = this.trackManager.getTrackDuration(trackId);
+      const timelineMetrics = calculateJianyingTimelineMetrics(audioMetadata.duration);
+      // 计算视频轨道的当前的总时长, 作为start,
+      // 视频的时长, 作为duration
+      target_timerange = {
+        start: trackDuration,
+        duration: timelineMetrics.timelineDurationInMicroseconds
+      };
+    }
     // 2. 在素材库中创建音频素材记录
     console.log("正在创建音频素材记录...");
     const newAudioMaterial = this.audioManager.create({
       app_id: 0,
       category_id: "",
-      category_name: "local",
+      category_name: "",
       check_flag: 1,
       copyright_limit_type: "none",
-      duration: calculateJianyingTimelineMetrics(audioMetadata.duration)
-        .timelineDurationInMicroseconds,
+      duration: calculateJianyingTimelineMetrics(audioMetadata.duration).timelineDurationInMicroseconds,
       effect_id: "",
       formula_id: "",
       id: generateId(),
@@ -627,10 +583,10 @@ export class JianYingEditor {
       is_ai_clone_tone: false,
       is_text_edit_overdub: false,
       is_ugc: false,
-      local_material_id: generateId(),
-      music_id: generateId(),
+      local_material_id: "",
+      music_id: "",
       name: path.basename(audioPath),
-      path: audioPath.replace(/\\/g, "/"),
+      path: path.resolve(audioPath).replace(/\\/g, "/"),
       query: "",
       request_id: "",
       resource_id: "",
@@ -650,7 +606,7 @@ export class JianYingEditor {
       tone_type: "",
       type: "extract_music",
       video_id: "",
-      wave_points: [],
+      wave_points: []
     });
     if (!newAudioMaterial) {
       console.error("错误：创建音频素材失败！");
@@ -664,7 +620,7 @@ export class JianYingEditor {
         beats_url: "",
         melody_path: "",
         melody_percents: [0],
-        melody_url: "",
+        melody_url: ""
       },
       enable_ai_beats: false,
       gear: 404,
@@ -673,7 +629,7 @@ export class JianYingEditor {
       mode: 404,
       type: "beats",
       user_beats: [],
-      user_delete_ai_beats: null,
+      user_delete_ai_beats: null
     });
     if (!beat) {
       console.error("错误：创建Beat素材失败！");
@@ -688,13 +644,13 @@ export class JianYingEditor {
       id: generateId(),
       mode: 0,
       speed: 1,
-      type: "speed",
+      type: "speed"
     });
     const sound_channel_mapping = this.soundChannelMappingManager.create({
       audio_channel_mapping: 0,
       id: generateId(),
       is_config_open: false,
-      type: "",
+      type: ""
     });
 
     const vocalSeparation = this.vocalSeparationManager.create({
@@ -702,15 +658,10 @@ export class JianYingEditor {
       id: generateId(),
       production_path: "",
       time_range: null,
-      type: "vocal_separation",
+      type: "vocal_separation"
     });
 
-    const extra_material_refs = [
-      speed.id,
-      beat.id,
-      sound_channel_mapping.id,
-      vocalSeparation.id,
-    ];
+    const extra_material_refs = [speed.id, beat.id, sound_channel_mapping.id, vocalSeparation.id];
     // materials.speeds
     // materials.canvases
     // materials.sound_channel_mappings
@@ -747,13 +698,12 @@ export class JianYingEditor {
         horizontal_pos_layout: 0,
         size_layout: 0,
         target_follow: "",
-        vertical_pos_layout: 0,
+        vertical_pos_layout: 0
       },
       reverse: false,
       source_timerange: {
         start: 0,
-        duration: calculateJianyingTimelineMetrics(audioMetadata.duration)
-          .timelineDurationInMicroseconds,
+        duration: calculateJianyingTimelineMetrics(audioMetadata.duration).timelineDurationInMicroseconds
       },
       speed: 1,
       target_timerange,
@@ -763,20 +713,13 @@ export class JianYingEditor {
       track_render_index: 0,
       uniform_scale: null,
       visible: true,
-      volume: 1,
+      volume: 1
     };
 
-    const trackRemainingFrames = getRemainingFramesFromMicroseconds(
-      segment.target_timerange.start
-    );
+    const trackRemainingFrames = getRemainingFramesFromMicroseconds(segment.target_timerange.start);
     console.log("trackRemainingFrames", trackRemainingFrames);
-    const currentMaterialRemainingFrames = getRemainingFramesFromMicroseconds(
-      segment.source_timerange.duration
-    );
-    console.log(
-      "currentMaterialRemainingFrames",
-      currentMaterialRemainingFrames
-    );
+    const currentMaterialRemainingFrames = getRemainingFramesFromMicroseconds(segment.source_timerange.duration);
+    console.log("currentMaterialRemainingFrames", currentMaterialRemainingFrames);
 
     if (trackRemainingFrames + currentMaterialRemainingFrames >= 3) {
       segment.target_timerange.duration += 1;
@@ -795,28 +738,33 @@ export class JianYingEditor {
   /**
    * (高级业务方法) 向时间轴插入一个图片片段
    * @param {object} params - 参数对象
-   * @param {string} params.mediaPath - 图片文件的本地路径
-   * @param {string} params.trackId - 要插入图片片段的目标轨道ID。
-   * @param {Track} params.referenceTrack - 用于确定图片片段位置和时长的参考轨道对象（通常是人声轨道）。
+   * @param {string} params.imagePath - 图片文件的本地路径
+   * @param {string} params.trackName - 要插入图片片段的目标轨道名字.
+   * @param {string} params.referenceTrackName - 用于确定图片片段位置和时长的参考轨道名字
    * @param {number} params.index - 参考轨道中用于确定图片片段位置的片段索引。
+   * @returns {Promise<object | null>} - 插入的图片片段对象，如果插入成功。如果插入失败，返回 null。
+   *
    */
-  async insertImageClip({ mediaPath, trackId, referenceTrack, index }) {
+  async insertImageClip({ imagePath, trackName, referenceTrackName, index }) {
     console.log(styleText("green", `--- 开始执行高级业务：插入图片片段 ---\n`));
-    if (!trackId) {
-      throw new Error("未指定轨道ID");
+    if (!trackName) {
+      throw new Error("未指定轨道名字");
     }
-
-    console.log(`获取图片元信息, 文件路径: ${mediaPath}`);
-    const mediaMetadata = await getMediaMetadata(mediaPath);
-
+    console.log(`获取图片元信息, 文件路径: ${imagePath}`);
+    const track = this.trackManager.getTrackByTrackName(trackName);
+    const referenceTrack = this.trackManager.getTrackByTrackName(referenceTrackName);
+    const trackId = track.id;
+    const mediaMetadata = await getMediaMetadata(imagePath);
+    // 类型守卫：在处理前，先检查并确保媒体类型是 'video'
+    if (mediaMetadata.type !== "image") {
+      throw new Error(`提供的文件不是图片文件。期望 'image'，但得到 '${mediaMetadata.type}'。路径: ${imagePath}`);
+    }
     /**
      * Logs media metadata for a video.
      * The cast is used here to specify the expected type for logging.
      * @param {import("./types").MediaMetadataResult} mediaMetadata - The media metadata object.
      */
-    this.logMediaMetadata(
-      /** @type {{type: 'image', metadata: ImageMetadata}} */ (mediaMetadata)
-    );
+    this.logMediaMetadata(/** @type {{type: 'image', metadata: ImageMetadata}} */ (mediaMetadata));
     const metadata = /** @type {ImageMetadata} */ (mediaMetadata.metadata);
 
     // // 返回一个包含关键图片信息的对象
@@ -834,7 +782,7 @@ export class JianYingEditor {
       audio_fade: null,
       cartoon_path: "",
       category_id: "",
-      category_name: "local",
+      category_name: "",
       check_flag: 63487,
       crop: {
         lower_left_x: 0,
@@ -844,7 +792,7 @@ export class JianYingEditor {
         upper_left_x: 0,
         upper_left_y: 0,
         upper_right_x: 1,
-        upper_right_y: 0,
+        upper_right_y: 0
       },
       crop_ratio: "free",
       crop_scale: 1,
@@ -864,7 +812,7 @@ export class JianYingEditor {
       local_id: "",
       local_material_id: "",
       material_id: "",
-      material_name: path.basename(mediaPath),
+      material_name: path.basename(imagePath),
       material_url: "",
       matting: {
         flag: 0,
@@ -872,12 +820,12 @@ export class JianYingEditor {
         has_use_quick_eraser: false,
         interactiveTime: [],
         path: "",
-        strokes: [],
+        strokes: []
       },
       media_path: "",
       object_locked: null,
       origin_material_id: "",
-      path: mediaPath,
+      path: path.resolve(imagePath).replace(/\\/g, "/"),
       picture_from: "none",
       picture_set_category_id: "",
       picture_set_category_name: "",
@@ -892,8 +840,8 @@ export class JianYingEditor {
         stable_level: 0,
         time_range: {
           duration: 0,
-          start: 0,
-        },
+          start: 0
+        }
       },
       team_id: "",
       type: "photo",
@@ -906,9 +854,9 @@ export class JianYingEditor {
         noise_reduction: null,
         path: "",
         quality_enhance: null,
-        time_range: null,
+        time_range: null
       },
-      width: metadata.width,
+      width: metadata.width
     });
     if (!newImageMaterial) {
       console.error("错误：创建图片素材失败！");
@@ -925,7 +873,7 @@ export class JianYingEditor {
       image_name: "",
       source_platform: 0,
       team_id: "",
-      type: "canvas_color",
+      type: "canvas_color"
     });
 
     // 效果id列表
@@ -936,13 +884,13 @@ export class JianYingEditor {
       id: generateId(),
       mode: 0,
       speed: 1,
-      type: "speed",
+      type: "speed"
     });
     const sound_channel_mapping = this.soundChannelMappingManager.create({
       audio_channel_mapping: 0,
       id: generateId(),
       is_config_open: false,
-      type: "",
+      type: ""
     });
 
     const vocalSeparation = this.vocalSeparationManager.create({
@@ -950,27 +898,13 @@ export class JianYingEditor {
       id: generateId(),
       production_path: "",
       time_range: null,
-      type: "vocal_separation",
+      type: "vocal_separation"
     });
 
-    const extra_material_refs = [
-      canvas.id,
-      sound_channel_mapping.id,
-      speed.id,
-      vocalSeparation.id,
-    ];
-    // materials.speeds
-    // materials.canvases
-    // materials.sound_channel_mappings
-    // materials.vocal_separations
-    // tracks[0].segments[0].extra_material_refs
+    const extra_material_refs = [speed.id, canvas.id, sound_channel_mapping.id, vocalSeparation.id];
 
     // 3. 在轨道上添加引用该素材的片段
     console.log(`正在向轨道 ${trackId} 添加片段...`);
-
-    // source_timerange: { start: 0, duration: 10000000 },
-    // speed: 1,
-    // target_timerange: { start: 0, duration: 10000000 },
     const referenceSegments = referenceTrack.segments;
     const referenceSegment = referenceSegments[index];
     console.log("referenceSegment", referenceSegment);
@@ -988,17 +922,17 @@ export class JianYingEditor {
         alpha: 1,
         flip: {
           horizontal: false,
-          vertical: false,
+          vertical: false
         },
         rotation: 0,
         scale: {
           x: 1,
-          y: 1,
+          y: 1
         },
         transform: {
           x: 0,
-          y: 0,
-        },
+          y: 0
+        }
       },
       common_keyframes: [],
       enable_adjust: true,
@@ -1013,7 +947,7 @@ export class JianYingEditor {
       hdr_settings: {
         intensity: 1,
         mode: 1,
-        nits: 1000,
+        nits: 1000
       },
       id: generateId(),
       intensifies_audio: false,
@@ -1028,7 +962,7 @@ export class JianYingEditor {
         horizontal_pos_layout: 0,
         size_layout: 0,
         target_follow: "",
-        vertical_pos_layout: 0,
+        vertical_pos_layout: 0
       },
       reverse: false,
       source_timerange,
@@ -1040,10 +974,10 @@ export class JianYingEditor {
       track_render_index: 0,
       uniform_scale: {
         on: true,
-        value: 1,
+        value: 1
       },
       visible: true,
-      volume: 1,
+      volume: 1
     });
 
     if (newSegment) {
@@ -1056,21 +990,59 @@ export class JianYingEditor {
   }
 
   /**
-   * (高级业务方法) 向时间轴插入多个字幕片段。
+   * (高级业务方法) 从SRT字幕文件中读取字幕并插入到时间轴
    *
-   * @param {Array<{index: number, startTime: number, endTime: number, text: string}>} subtitles - 字幕数组. 包含字幕文本和时间信息。
-   * @param {string} trackId - 要插入字幕的目标轨道ID。
-   * @param {Track} vocalTrack - 用于确定字幕位置和时长的参考轨道对象（通常是人声轨道）。
-   * @param {number} index - 参考轨道中用于确定字幕片段位置的片段索引。
-   * @param {"text" | "subtitle"} textType - 字幕的类型
+   * @param {Object} params - 参数对象
+   * @param {string} params.srtPath - SRT字幕文件的本地路径
+   * @param {string} params.trackName - 要插入字幕的目标轨道名字
+   * @param {string} params.vocalTrackName - 用于确定字幕位置和时长的参考轨道名字（通常是人声轨道）
+   * @param {number} params.index - 参考轨道中用于确定字幕片段位置的片段索引
+   * @param {"text" | "subtitle"} params.textType - 字幕的类型，"text"表示标题，"subtitle"表示字幕
+   * @returns {Promise<void>}
+   *
+   * @example
+   * await editor.insertTextClip({
+   *   srtPath: './subtitles.srt',
+   *   trackName: '字幕轨道',
+   *   vocalTrackName: '人声轨道',
+   *   index: 0,
+   *   textType: 'subtitle'
+   * });
    */
+  async insertTextClip({ srtPath, trackName, vocalTrackName, index, textType }) {
+    const subtitles = await parseSrtFileToMicroseconds(srtPath);
+    await this.insertSubtitleClips({ subtitles, trackName, vocalTrackName, index, textType });
+  }
 
-  async insertSubtitleClips(subtitles, trackId, vocalTrack, index, textType) {
+  /**
+   * (高级业务方法) 向时间轴插入多个字幕片段
+   *
+   * @param {Object} params - 参数对象
+   * @param {Array<{startTime: number, endTime: number, text: string}>} params.subtitles - 字幕数组，包含字幕文本和时间信息
+   * @param {string} params.trackName - 要插入字幕的目标轨道名字
+   * @param {string} params.vocalTrackName - 用于确定字幕位置和时长的参考轨道名字（通常是人声轨道）
+   * @param {number} params.index - 参考轨道中用于确定字幕片段位置的片段索引
+   * @param {"text" | "subtitle"} params.textType - 字幕的类型，"text"表示标题，"subtitle"表示字幕
+   * @returns {Promise<void>}
+   *
+   * @example
+   * await editor.insertSubtitleClips({
+   *   subtitles: [
+   *     { startTime: 360000, endTime: 2980000, text: '它的面积堪比一座城市' },
+   *     { startTime: 3120000, endTime: 6220000, text: '并且它似乎在对我们发出回应' }
+   *   ],
+   *   trackName: '字幕轨道1',
+   *   vocalTrackName: '人声轨道1',
+   *   index: 0,
+   *   textType: 'subtitle'
+   * });
+   */
+  async insertSubtitleClips({ subtitles, trackName, vocalTrackName, index, textType }) {
     console.log(styleText("green", `--- 开始执行高级业务：插入字幕片段 ---\n`));
-    if (!trackId) {
-      throw new Error("请指定轨道ID！");
+    if (!trackName) {
+      throw new Error("未指定轨道名字");
     }
-
+    const vocalTrack = this.trackManager.getTrackByTrackName(vocalTrackName);
     // 2. 在素材库中创建字幕素材记录
     console.log("正在创建字幕素材记录...");
     // [
@@ -1093,28 +1065,56 @@ export class JianYingEditor {
     const vocalSegment = vocalSegments[index];
     console.log("videoSegment", vocalSegment);
     if (!vocalSegment) {
-      throw new Error("人声轨道没有片段, 请先添加人声片段");
+      throw new Error("人声轨道没有片段, 请先添加人声片段, index = " + index);
     }
     const target_timerange = vocalSegment.target_timerange;
     const startTime = target_timerange.start;
     for (let i = 0; i < subtitles.length; i++) {
       const subtitle = subtitles[i];
-      await this.insertSubtitleClip(subtitle, trackId, startTime, textType);
+      await this.insertSubtitleClip({ subtitle, trackName, startTime, textType });
     }
   }
+  // /**
+  //  * (高级业务方法) 向时间轴插入多个字幕片段。
+  //  *
+  //  * @param {{index: number, startTime: number, endTime: number, text: string}} subtitle - 字幕. 包含字幕文本和时间信息。
+  //  * @param {string} trackName - 要插入字幕的目标轨道名字
+  //  * @param {number} startTime
+  //  * @param {"text" | "subtitle"} textType - 字幕的类型
+  //  */
+
   /**
-   * (高级业务方法) 向时间轴插入多个字幕片段。
+   * (高级业务方法) 向时间轴插入单个字幕片段
    *
-   * @param {{index: number, startTime: number, endTime: number, text: string}} subtitle - 字幕. 包含字幕文本和时间信息。
-   * @param {string} trackId - 要插入字幕的目标轨道ID。
-   * @param {number} startTime
-   * @param {"text" | "subtitle"} textType - 字幕的类型
+   * @param {Object} params - 参数对象
+   * @param {Object} params.subtitle - 字幕信息对象
+   * @param {number} params.subtitle.startTime - 字幕开始时间（微秒）
+   * @param {number} params.subtitle.endTime - 字幕结束时间（微秒）
+   * @param {string} params.subtitle.text - 字幕文本内容
+   * @param {string} params.trackName - 要插入字幕的目标轨道名字
+   * @param {number} params.startTime - 字幕片段在时间轴上的起始时间偏移量（微秒）
+   * @param {"text" | "subtitle"} params.textType - 字幕的类型，"text"表示标题，"subtitle"表示字幕
+   * @returns {Promise<Object|null>} 新创建的字幕片段对象，或在失败时返回 null
+   *
+   * @example
+   * await editor.insertSubtitleClip({
+   *   subtitle: {
+   *     startTime: 360000,
+   *     endTime: 2980000,
+   *     text: '它的面积堪比一座城市'
+   *   },
+   *   trackName: '字幕轨道',
+   *   startTime: 0,
+   *   textType: 'subtitle'
+   * });
    */
-  async insertSubtitleClip(subtitle, trackId, startTime, textType) {
+  async insertSubtitleClip({ subtitle, trackName, startTime, textType }) {
     console.log(styleText("green", `--- 开始执行高级业务：插入字幕片段 ---\n`));
-    if (!trackId) {
-      throw new Error("请指定轨道ID！");
+    if (!trackName) {
+      throw new Error("未指定轨道名字");
     }
+    const track = this.trackManager.getTrackByTrackName(trackName);
+    const trackId = track.id;
 
     // 2. 在素材库中创建字幕素材记录
     console.log("正在创建字幕素材记录...");
@@ -1132,8 +1132,7 @@ export class JianYingEditor {
     //     text: '并且它似乎在对我们发出回应'
     //   }
     // ]
-    const font_path =
-      "C:/Users/Administrator/AppData/Local/Microsoft/Windows/Fonts/LXGWWenKaiMonoGB-Medium.ttf";
+    const font_path = "C:/Users/Administrator/AppData/Local/Microsoft/Windows/Fonts/LXGWWenKaiMonoGB-Medium.ttf";
 
     const originalContent = {
       text: subtitle.text,
@@ -1142,29 +1141,29 @@ export class JianYingEditor {
           fill: {
             content: {
               solid: {
-                color: [1, 0.87058824300766, 0],
-              },
-            },
+                color: [1, 0.87058824300766, 0]
+              }
+            }
           },
           font: {
             path: font_path,
-            id: "",
+            id: ""
           },
           strokes: [
             {
               content: {
                 solid: {
-                  color: [0, 0, 0],
-                },
+                  color: [0, 0, 0]
+                }
               },
-              width: 0.07999999821186066,
-            },
+              width: 0.07999999821186066
+            }
           ],
           size: 5,
           useLetterColor: true,
-          range: [0, subtitle.text.length],
-        },
-      ],
+          range: [0, subtitle.text.length]
+        }
+      ]
     };
 
     const newSubtitleMaterial = this.subtitleManager.create({
@@ -1192,11 +1191,11 @@ export class JianYingEditor {
         request_id: "",
         resource_id: "",
         resource_name: "",
-        source_platform: 0,
+        source_platform: 0
       },
       check_flag: 7,
       combo_info: {
-        text_templates: [],
+        text_templates: []
       },
       content: JSON.stringify(originalContent),
       fixed_height: -1,
@@ -1247,7 +1246,7 @@ export class JianYingEditor {
       shadow_distance: 5,
       shadow_point: {
         x: 0.6363961030678928,
-        y: -0.6363961030678928,
+        y: -0.6363961030678928
       },
       shadow_smoothing: 0.45,
       shape_clip_x: false,
@@ -1273,8 +1272,8 @@ export class JianYingEditor {
       words: {
         end_time: [],
         start_time: [],
-        text: [],
-      },
+        text: []
+      }
     });
     if (!newSubtitleMaterial) {
       console.error("错误：创建字幕素材失败！");
@@ -1286,7 +1285,7 @@ export class JianYingEditor {
       animations: [],
       id: generateId(),
       multi_language_current: "none",
-      type: "sticker_animation",
+      type: "sticker_animation"
     });
 
     const extra_material_refs = [materialAnimation.id];
@@ -1306,17 +1305,17 @@ export class JianYingEditor {
         alpha: 1,
         flip: {
           horizontal: false,
-          vertical: false,
+          vertical: false
         },
         rotation: 0,
         scale: {
           x: 1,
-          y: 1,
+          y: 1
         },
         transform: {
           x: 0,
-          y: -0.73,
-        },
+          y: -0.73
+        }
       },
       common_keyframes: [],
       enable_adjust: false,
@@ -1342,14 +1341,14 @@ export class JianYingEditor {
         horizontal_pos_layout: 0,
         size_layout: 0,
         target_follow: "",
-        vertical_pos_layout: 0,
+        vertical_pos_layout: 0
       },
       reverse: false,
       source_timerange: null,
       speed: 1,
       target_timerange: {
         duration: subtitle.endTime - subtitle.startTime,
-        start: subtitle.startTime + startTime,
+        start: subtitle.startTime + startTime
       },
       template_id: "",
       template_scene: "default",
@@ -1357,10 +1356,10 @@ export class JianYingEditor {
       track_render_index: 1,
       uniform_scale: {
         on: true,
-        value: 1,
+        value: 1
       },
       visible: true,
-      volume: 1,
+      volume: 1
     });
 
     if (newSegment) {
