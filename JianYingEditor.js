@@ -1004,6 +1004,8 @@ export class JianYingEditor {
    * @param {string} params.vocalTrackName - 用于确定字幕位置和时长的参考轨道名字（通常是人声轨道）
    * @param {number} params.index - 参考轨道中用于确定字幕片段位置的片段索引
    * @param {"text" | "subtitle"} params.textType - 字幕的类型，"text"表示标题，"subtitle"表示字幕
+   * @param {string} [params.fontPath="C:/Users/Administrator/AppData/Local/Microsoft/Windows/Fonts/LXGWWenKaiMonoGB-Medium.ttf"] - 字体文件路径
+   * @param {string} [params.fontTitle="霞鹜文楷等宽 GB Medium"] - 字体名称
    * @returns {Promise<void>}
    *
    * @example
@@ -1015,9 +1017,9 @@ export class JianYingEditor {
    *   textType: 'subtitle'
    * });
    */
-  async insertTextClip({ srtPath, trackName, vocalTrackName, index, textType }) {
+  async insertTextClip({ srtPath, trackName, vocalTrackName, index, textType, fontPath, fontTitle }) {
     const subtitles = await parseSrtFileToMicroseconds(srtPath);
-    await this.insertSubtitleClips({ subtitles, trackName, vocalTrackName, index, textType });
+    await this.insertSubtitleClips({ subtitles, trackName, vocalTrackName, index, textType, fontPath, fontTitle });
   }
 
   /**
@@ -1029,6 +1031,8 @@ export class JianYingEditor {
    * @param {string} params.vocalTrackName - 用于确定字幕位置和时长的参考轨道名字（通常是人声轨道）
    * @param {number} params.index - 参考轨道中用于确定字幕片段位置的片段索引
    * @param {"text" | "subtitle"} params.textType - 字幕的类型，"text"表示标题，"subtitle"表示字幕
+   * @param {string} [params.fontPath="C:/Users/Administrator/AppData/Local/Microsoft/Windows/Fonts/LXGWWenKaiMonoGB-Medium.ttf"] - 字体文件路径
+   * @param {string} [params.fontTitle="霞鹜文楷等宽 GB Medium"] - 字体名称
    * @returns {Promise<void>}
    *
    * @example
@@ -1043,7 +1047,7 @@ export class JianYingEditor {
    *   textType: 'subtitle'
    * });
    */
-  async insertSubtitleClips({ subtitles, trackName, vocalTrackName, index, textType }) {
+  async insertSubtitleClips({ subtitles, trackName, vocalTrackName, index, textType, fontPath, fontTitle }) {
     console.log(styleText("green", `--- 开始执行高级业务：插入字幕片段 ---\n`));
     if (!trackName) {
       throw new Error("未指定轨道名字");
@@ -1077,17 +1081,9 @@ export class JianYingEditor {
     const startTime = target_timerange.start;
     for (let i = 0; i < subtitles.length; i++) {
       const subtitle = subtitles[i];
-      await this.insertSubtitleClip({ subtitle, trackName, startTime, textType });
+      await this.insertSubtitleClip({ subtitle, trackName, startTime, textType, fontPath, fontTitle });
     }
   }
-  // /**
-  //  * (高级业务方法) 向时间轴插入多个字幕片段。
-  //  *
-  //  * @param {{index: number, startTime: number, endTime: number, text: string}} subtitle - 字幕. 包含字幕文本和时间信息。
-  //  * @param {string} trackName - 要插入字幕的目标轨道名字
-  //  * @param {number} startTime
-  //  * @param {"text" | "subtitle"} textType - 字幕的类型
-  //  */
 
   /**
    * (高级业务方法) 向时间轴插入单个字幕片段
@@ -1100,6 +1096,8 @@ export class JianYingEditor {
    * @param {string} params.trackName - 要插入字幕的目标轨道名字
    * @param {number} params.startTime - 字幕片段在时间轴上的起始时间偏移量（微秒）
    * @param {"text" | "subtitle"} params.textType - 字幕的类型，"text"表示标题，"subtitle"表示字幕
+   * @param {string} [params.fontPath="C:/Users/Administrator/AppData/Local/Microsoft/Windows/Fonts/LXGWWenKaiMonoGB-Medium.ttf"] - 字体文件路径
+   * @param {string} [params.fontTitle="霞鹜文楷等宽 GB Medium"] - 字体名称
    * @returns {Promise<Object|null>} 新创建的字幕片段对象，或在失败时返回 null
    *
    * @example
@@ -1114,7 +1112,7 @@ export class JianYingEditor {
    *   textType: 'subtitle'
    * });
    */
-  async insertSubtitleClip({ subtitle, trackName, startTime, textType }) {
+  async insertSubtitleClip({ subtitle, trackName, startTime, textType, fontPath = "C:/Users/Administrator/AppData/Local/Microsoft/Windows/Fonts/LXGWWenKaiMonoGB-Medium.ttf", fontTitle = "霞鹜文楷等宽 GB Medium" }) {
     console.log(styleText("green", `--- 开始执行高级业务：插入字幕片段 ---\n`));
     if (!trackName) {
       throw new Error("未指定轨道名字");
@@ -1138,7 +1136,7 @@ export class JianYingEditor {
     //     text: '并且它似乎在对我们发出回应'
     //   }
     // ]
-    const font_path = "C:/Users/Administrator/AppData/Local/Microsoft/Windows/Fonts/LXGWWenKaiMonoGB-Medium.ttf";
+    // const font_path = "C:/Users/Administrator/AppData/Local/Microsoft/Windows/Fonts/LXGWWenKaiMonoGB-Medium.ttf";
 
     const originalContent = {
       text: subtitle.text,
@@ -1152,7 +1150,7 @@ export class JianYingEditor {
             }
           },
           font: {
-            path: font_path,
+            path: fontPath,
             id: ""
           },
           strokes: [
@@ -1210,12 +1208,12 @@ export class JianYingEditor {
       font_category_name: "",
       font_id: "",
       font_name: "",
-      font_path: font_path,
+      font_path: fontPath,
       font_resource_id: "",
       font_size: 5,
       font_source_platform: 0,
       font_team_id: "",
-      font_title: "霞鹜文楷等宽 GB Medium",
+      font_title: fontTitle,
       font_url: "",
       fonts: [],
       force_apply_line_max_width: false,
