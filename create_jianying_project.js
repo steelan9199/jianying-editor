@@ -10,7 +10,7 @@ import crypto from "crypto";
 // --- 用户配置 ---
 
 // 1. 模板工程的路径 (请使用你的模板文件夹)
-const TEMPLATE_PROJECT_PATH = "./JianYingTemplateProject";
+const TEMPLATE_PROJECT_PATH = path.join(import.meta.dirname, "./JianYingTemplateProject");
 
 function getNewProjectName() {
   // 2. 新工程的名称

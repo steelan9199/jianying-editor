@@ -73,7 +73,7 @@ export class JianYingEditor {
     }
     // 重置项目数据到 emptyProject.json
     try {
-      const emptyProjectFilePath = "./emptyProject.json";
+      const emptyProjectFilePath = path.join(import.meta.dirname, "emptyProject.json");
       const emptyProjectContent = fs.readFileSync(emptyProjectFilePath, "utf-8");
       const emptyProjectData = JSON.parse(emptyProjectContent);
       emptyProjectData.id = this.projectData.id; // 保持原项目的ID
